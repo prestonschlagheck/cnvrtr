@@ -1,0 +1,460 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #1a1a1a;
+    color: white;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* Landing Container */
+.landing-container {
+    min-height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Removed navigation styles */
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+.content-wrapper {
+    max-width: 1200px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: center;
+    z-index: 10;
+    position: relative;
+}
+
+.text-content {
+    max-width: 600px;
+    margin-left: 2rem;
+}
+
+/* Typography */
+.main-heading {
+    font-size: clamp(4rem, 8vw, 8rem);
+    font-weight: 900;
+    line-height: 0.9;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #ffffff 0%, #ff6b35 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.02em;
+}
+
+.sub-heading {
+    font-size: clamp(1.2rem, 2.5vw, 2rem);
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.01em;
+}
+
+.description {
+    font-size: clamp(1rem, 1.2vw, 1.2rem);
+    color: #b0b0b0;
+    margin-bottom: 3rem;
+    max-width: 500px;
+    line-height: 1.7;
+    font-weight: 400;
+}
+
+/* CTA Button */
+.cta-button {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.cta-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.cta-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(255, 107, 53, 0.4);
+}
+
+.cta-button:hover::before {
+    left: 100%;
+}
+
+.cta-button:active {
+    transform: translateY(0);
+}
+
+/* Background Pattern */
+.background-pattern {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.pattern-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Flowing Lines Animation - Simplified */
+.flowing-lines {
+    animation: flow 30s ease-in-out infinite;
+}
+
+.line-1 {
+    animation: flow1 25s ease-in-out infinite;
+}
+
+.line-2 {
+    animation: flow2 30s ease-in-out infinite reverse;
+}
+
+.line-3 {
+    animation: flow3 35s ease-in-out infinite;
+}
+
+.line-4, .line-5, .line-6 {
+    animation: none; /* Disable extra animations for performance */
+}
+
+/* Diagonal Lines Animation - Simplified */
+.angled-lines {
+    animation: none; /* Disable complex diagonal animations */
+}
+
+.diagonal-1, .diagonal-2, .diagonal-3, .diagonal-4 {
+    animation: none;
+}
+
+.diagonal-5, .diagonal-6, .diagonal-7, .diagonal-8, .diagonal-9 {
+    animation: none;
+}
+
+.diagonal-10, .diagonal-11, .diagonal-12, .diagonal-13 {
+    animation: none;
+}
+
+/* Wave Lines Animation - Disabled for performance */
+.wave-lines {
+    animation: none;
+}
+
+.wave-1, .wave-3, .wave-5 {
+    animation: none;
+}
+
+.wave-2, .wave-4, .wave-6 {
+    animation: none;
+}
+
+@keyframes flow1 {
+    0%, 100% { 
+        d: path("M-100,200 Q200,50 500,180 T900,120 T1300,200");
+        opacity: 0.4;
+    }
+    50% { 
+        d: path("M-100,220 Q220,70 520,200 T920,140 T1300,220");
+        opacity: 0.6;
+    }
+}
+
+@keyframes flow2 {
+    0%, 100% { 
+        d: path("M-100,350 Q300,200 600,330 T1000,270 T1300,350");
+        opacity: 0.3;
+    }
+    50% { 
+        d: path("M-100,330 Q320,180 620,310 T1020,250 T1300,330");
+        opacity: 0.5;
+    }
+}
+
+@keyframes flow3 {
+    0%, 100% { 
+        d: path("M-100,500 Q250,350 550,480 T850,420 T1300,500");
+        opacity: 0.2;
+    }
+    50% { 
+        d: path("M-100,480 Q270,330 570,460 T870,400 T1300,480");
+        opacity: 0.4;
+    }
+}
+
+/* Conversion Form */
+.conversion-form {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.5s ease;
+}
+
+.conversion-form.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.form-content {
+    max-width: 600px;
+    width: 90%;
+    text-align: center;
+    padding: 3rem;
+    background: rgba(42, 42, 42, 0.8);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 107, 53, 0.2);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.form-heading {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #ffffff 0%, #ff6b35 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.form-description {
+    font-size: 1.1rem;
+    color: #b0b0b0;
+    margin-bottom: 2.5rem;
+}
+
+.input-group {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.playlist-input {
+    flex: 1;
+    min-width: 300px;
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    background: rgba(26, 26, 26, 0.8);
+    border: 2px solid rgba(255, 107, 53, 0.3);
+    border-radius: 12px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.3s ease;
+}
+
+.playlist-input:focus {
+    outline: none;
+    border-color: #ff6b35;
+    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+}
+
+.playlist-input::placeholder {
+    color: #666;
+}
+
+.cnvrt-button {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    min-width: 120px;
+}
+
+.cnvrt-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+}
+
+.form-note {
+    font-size: 0.9rem;
+    color: #888;
+    margin-top: 1rem;
+}
+
+/* Footer and Liability Waiver */
+.footer {
+    margin-top: auto;
+    padding: 2rem 0 1rem;
+    text-align: center;
+    border-top: 1px solid rgba(255, 107, 53, 0.2);
+    position: relative;
+    z-index: 10;
+}
+
+.footer p {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.liability-waiver {
+    margin-top: 1rem;
+    padding: 0;
+    background: none;
+    border: none;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.liability-waiver p {
+    color: #888;
+    margin: 0;
+    font-weight: normal;
+}
+
+/* Utility Classes */
+.hidden {
+    display: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .text-content {
+        margin-left: 0;
+        text-align: center;
+    }
+    
+    .main-content {
+        padding: 2rem 1rem;
+    }
+    
+    .input-group {
+        flex-direction: column;
+    }
+    
+    .playlist-input {
+        min-width: unset;
+    }
+    
+    .form-content {
+        padding: 2rem;
+        margin: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-heading {
+        font-size: 3rem;
+    }
+    
+    .sub-heading {
+        font-size: 1.2rem;
+    }
+    
+    .description {
+        font-size: 1rem;
+    }
+} 
+
+/* Soundwave Loading Animation */
+.spinner {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    width: 30px;
+    height: 1rem;
+    position: relative;
+}
+
+.spinner:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: currentColor;
+    border-radius: 1px;
+    animation: soundwave 1.2s ease-in-out infinite -0.4s;
+}
+
+.spinner:after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    width: 3px;
+    height: 100%;
+    background: currentColor;
+    border-radius: 1px;
+    animation: soundwave 1.2s ease-in-out infinite -0.2s;
+}
+
+.spinner::before {
+    left: 12px;
+    animation-delay: 0s;
+}
+
+.spinner::after {
+    left: 18px;
+    animation-delay: 0.2s;
+}
+
+@keyframes soundwave {
+    0%, 40%, 100% {
+        transform: scaleY(0.3);
+        opacity: 0.6;
+    }
+    20% {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+} 

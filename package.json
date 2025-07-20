@@ -1,0 +1,22 @@
+{
+  "name": "soundclouder",
+  "version": "1.0.0",
+  "description": "A simple SoundCloud playlist downloader",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "youtube-dl-exec": "^2.4.11",
+    "fs-extra": "^11.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": ["soundcloud", "downloader", "playlist", "music"],
+  "author": "",
+  "license": "MIT"
+} 

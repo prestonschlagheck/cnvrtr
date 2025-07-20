@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNVRTR - DJ Music Converter</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Background Pattern -->
+    <div class="background-pattern">
+        <svg class="pattern-svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+            <defs>
+                <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:0.8" />
+                    <stop offset="50%" style="stop-color:#ff8a5c;stop-opacity:0.6" />
+                    <stop offset="100%" style="stop-color:#f7931e;stop-opacity:0.4" />
+                </linearGradient>
+            </defs>
+            
+            <!-- Flowing curves -->
+            <path d="M0,300 Q300,100 600,250 T1200,200 L1200,0 L0,0 Z" fill="url(#orangeGradient)" opacity="0.3"/>
+            <path d="M0,500 Q400,300 800,450 T1200,400 L1200,800 L0,800 Z" fill="url(#orangeGradient)" opacity="0.2"/>
+            
+            <!-- Diagonal angled lines -->
+            <g class="angled-lines" stroke="url(#orangeGradient)" stroke-width="1.5" fill="none" opacity="0.4">
+                <line x1="-100" y1="100" x2="400" y2="300" class="diagonal-1"/>
+                <line x1="200" y1="50" x2="700" y2="250" class="diagonal-2"/>
+                <line x1="500" y1="0" x2="1000" y2="200" class="diagonal-3"/>
+                <line x1="800" y1="-50" x2="1300" y2="150" class="diagonal-4"/>
+                <line x1="-100" y1="400" x2="300" y2="600" class="diagonal-5"/>
+                <line x1="100" y1="350" x2="500" y2="550" class="diagonal-6"/>
+                <line x1="400" y1="300" x2="800" y2="500" class="diagonal-7"/>
+                <line x1="700" y1="250" x2="1100" y2="450" class="diagonal-8"/>
+                <line x1="1000" y1="200" x2="1400" y2="400" class="diagonal-9"/>
+                <line x1="-50" y1="700" x2="350" y2="900" class="diagonal-10"/>
+                <line x1="250" y1="650" x2="650" y2="850" class="diagonal-11"/>
+                <line x1="550" y1="600" x2="950" y2="800" class="diagonal-12"/>
+                <line x1="850" y1="550" x2="1250" y2="750" class="diagonal-13"/>
+            </g>
+            
+            <!-- Dynamic flowing patterns -->
+            <g class="flowing-lines" stroke="url(#orangeGradient)" stroke-width="2" fill="none" opacity="0.6">
+                <path d="M-100,200 Q200,50 500,180 T900,120 T1300,200" class="line-1"/>
+                <path d="M-100,350 Q300,200 600,330 T1000,270 T1300,350" class="line-2"/>
+                <path d="M-100,500 Q250,350 550,480 T850,420 T1300,500" class="line-3"/>
+                <path d="M-100,650 Q350,500 650,630 T950,570 T1300,650" class="line-4"/>
+                <path d="M-100,150 Q150,20 400,130 T700,70 T1300,150" class="line-5"/>
+                <path d="M-100,750 Q400,600 700,730 T1100,670 T1300,750" class="line-6"/>
+            </g>
+        </svg>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>CNVRTR.</h1>
+                <p>Professional DJ Music Conversion Tool</p>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="input-section">
+                <div class="input-container">
+                    <input 
+                        type="url" 
+                        id="playlistUrl" 
+                        placeholder="Paste your music playlist URL here..."
+                        class="url-input"
+                    >
+                    <button id="fetchBtn" class="fetch-btn">
+                        <span class="btn-text">CNVRT.</span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                </div>
+                <p class="input-help">
+                    Your music URL is ready for conversion. Click "CNVRT." to begin processing.
+                </p>
+            </div>
+
+            <div id="errorMessage" class="error-message hidden"></div>
+
+            <div id="playlistInfo" class="playlist-info hidden">
+                <div class="playlist-header">
+                    <h2 id="playlistTitle"></h2>
+                    <p id="playlistUploader"></p>
+                </div>
+                
+                <div class="playlist-actions">
+                    <button id="downloadAllBtn" class="download-all-btn">
+                        <span class="btn-text">
+                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            Download All to Folder
+                        </span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                </div>
+
+                <div id="tracksList" class="tracks-list"></div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 CNVRTR. For personal use only.</p>
+            <div class="liability-waiver">
+                <p><strong>Legal Disclaimer:</strong> The developer of this tool is not liable for any illegal use of this software. Users are responsible for complying with all applicable copyright laws and SoundCloud's terms of service. This tool is intended for personal use only with content you have permission to download.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 

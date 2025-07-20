@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNVRTR - DJ Music Conversion Tool</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="landing-container">
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="text-content">
+                    <h1 class="main-heading">CNVRTR.</h1>
+                    <h2 class="sub-heading">The Most Efficient DJ Conversion Tool</h2>
+                    <p class="description">
+                        Transform any playlist into high-quality MP3 files
+                    </p>
+                    <button id="beginBtn" class="cta-button">Begin</button>
+                </div>
+            </div>
+
+            <!-- Background Pattern -->
+            <div class="background-pattern">
+                <svg class="pattern-svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+                    <defs>
+                        <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:0.8" />
+                            <stop offset="50%" style="stop-color:#ff8a5c;stop-opacity:0.6" />
+                            <stop offset="100%" style="stop-color:#f7931e;stop-opacity:0.4" />
+                        </linearGradient>
+                    </defs>
+                    
+                    <!-- Flowing curves -->
+                    <path d="M0,300 Q300,100 600,250 T1200,200 L1200,0 L0,0 Z" fill="url(#orangeGradient)" opacity="0.3"/>
+                    <path d="M0,500 Q400,300 800,450 T1200,400 L1200,800 L0,800 Z" fill="url(#orangeGradient)" opacity="0.2"/>
+                    
+                    <!-- Diagonal angled lines -->
+                    <g class="angled-lines" stroke="url(#orangeGradient)" stroke-width="1.5" fill="none" opacity="0.4">
+                        <line x1="-100" y1="100" x2="400" y2="300" class="diagonal-1"/>
+                        <line x1="200" y1="50" x2="700" y2="250" class="diagonal-2"/>
+                        <line x1="500" y1="0" x2="1000" y2="200" class="diagonal-3"/>
+                        <line x1="800" y1="-50" x2="1300" y2="150" class="diagonal-4"/>
+                        
+                        <line x1="-100" y1="400" x2="300" y2="600" class="diagonal-5"/>
+                        <line x1="100" y1="350" x2="500" y2="550" class="diagonal-6"/>
+                        <line x1="400" y1="300" x2="800" y2="500" class="diagonal-7"/>
+                        <line x1="700" y1="250" x2="1100" y2="450" class="diagonal-8"/>
+                        <line x1="1000" y1="200" x2="1400" y2="400" class="diagonal-9"/>
+                        
+                        <line x1="-50" y1="700" x2="350" y2="900" class="diagonal-10"/>
+                        <line x1="250" y1="650" x2="650" y2="850" class="diagonal-11"/>
+                        <line x1="550" y1="600" x2="950" y2="800" class="diagonal-12"/>
+                        <line x1="850" y1="550" x2="1250" y2="750" class="diagonal-13"/>
+                    </g>
+                    
+                    <!-- Dynamic flowing patterns -->
+                    <g class="flowing-lines" stroke="url(#orangeGradient)" stroke-width="2" fill="none" opacity="0.6">
+                        <path d="M-100,200 Q200,50 500,180 T900,120 T1300,200" class="line-1"/>
+                        <path d="M-100,350 Q300,200 600,330 T1000,270 T1300,350" class="line-2"/>
+                        <path d="M-100,500 Q250,350 550,480 T850,420 T1300,500" class="line-3"/>
+                        <path d="M-100,650 Q350,500 650,630 T950,570 T1300,650" class="line-4"/>
+                        <path d="M-100,150 Q150,20 400,130 T700,70 T1300,150" class="line-5"/>
+                        <path d="M-100,750 Q400,600 700,730 T1100,670 T1300,750" class="line-6"/>
+                    </g>
+                    
+                    <!-- Additional wave patterns -->
+                    <g class="wave-lines" stroke="url(#orangeGradient)" stroke-width="1" fill="none" opacity="0.3">
+                        <path d="M-200,100 Q100,-50 400,80 T800,20 T1400,100" class="wave-1"/>
+                        <path d="M-200,250 Q200,100 500,230 T900,170 T1400,250" class="wave-2"/>
+                        <path d="M-200,400 Q300,250 600,380 T1000,320 T1400,400" class="wave-3"/>
+                        <path d="M-200,550 Q100,400 400,530 T800,470 T1400,550" class="wave-4"/>
+                        <path d="M-200,700 Q250,550 550,680 T950,620 T1400,700" class="wave-5"/>
+                        <path d="M-200,850 Q350,700 650,830 T1050,770 T1400,850" class="wave-6"/>
+                    </g>
+                </svg>
+            </div>
+        </main>
+
+        <!-- Footer with liability waiver -->
+        <footer class="footer">
+            <div class="liability-waiver">
+                <p><strong>Legal Disclaimer:</strong> The developer of this tool is not liable for any illegal use of this software. Users are responsible for complying with all applicable copyright laws and SoundCloud's terms of service. This tool is intended for personal use only with content you have permission to download.</p>
+            </div>
+        </footer>
+
+        <!-- Conversion Form (Initially Hidden) -->
+        <div id="conversionForm" class="conversion-form hidden">
+            <div class="form-content">
+                <h2 class="form-heading">Paste Your Playlist</h2>
+                <p class="form-description">Enter your SoundCloud playlist or track URL below</p>
+                
+                <div class="input-group">
+                    <input type="url" id="playlistInput" class="playlist-input" 
+                           placeholder="https://soundcloud.com/user/sets/playlist-name">
+                    <button id="cnvrtBtn" class="cnvrt-button">CNVRT.</button>
+                </div>
+                
+                <div class="form-note">
+                    Supports both individual tracks and full playlists
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html> 
