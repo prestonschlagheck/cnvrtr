@@ -4,8 +4,11 @@ services:
     env: node
     buildCommand: |
       npm install
-      pip install yt-dlp
+      pip3 install --user yt-dlp
+      export PATH="$PATH:$HOME/.local/bin"
     startCommand: npm start
     envVars:
       - key: NODE_ENV
-        value: production 
+        value: production
+      - key: PATH
+        value: $PATH:$HOME/.local/bin 

@@ -6,8 +6,18 @@ const { create: createYoutubeDl } = require('youtube-dl-exec');
 const { spawn } = require('child_process');
 const os = require('os');
 
-// Create a custom youtube-dl instance - Render will handle the binary installation
-const youtubedl = createYoutubeDl();
+// Create a custom youtube-dl instance with better error handling
+let youtubedl;
+try {
+    youtubedl = createYoutubeDl({
+        pythonPath: 'python3',
+        ytDlpPath: 'yt-dlp'
+    });
+} catch (error) {
+    console.error('Failed to initialize yt-dlp:', error);
+    // Fallback to default
+    youtubedl = createYoutubeDl();
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,6 +46,36 @@ app.get('/app.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'app.html'));
 });
 
+// Health check endpoint to verify yt-dlp is working
+app.get('/health', async (req, res) => {
+    try {
+        // Test if yt-dlp is available
+        const { exec } = require('child_process');
+        exec('yt-dlp --version', (error, stdout, stderr) => {
+            if (error) {
+                console.error('yt-dlp not available:', error);
+                res.status(500).json({ 
+                    status: 'error', 
+                    message: 'yt-dlp not installed or not in PATH',
+                    error: error.message 
+                });
+            } else {
+                res.json({ 
+                    status: 'ok', 
+                    ytdlp_version: stdout.trim(),
+                    message: 'Server and yt-dlp are working properly' 
+                });
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            status: 'error', 
+            message: 'Health check failed',
+            error: error.message 
+        });
+    }
+});
+
 // Get playlist info
 app.post('/api/playlist-info', async (req, res) => {
     try {
@@ -43,6 +83,14 @@ app.post('/api/playlist-info', async (req, res) => {
         
         if (!url || !url.includes('soundcloud.com')) {
             return res.status(400).json({ error: 'Invalid SoundCloud URL' });
+        }
+
+        // Check if yt-dlp is available before proceeding
+        if (!youtubedl) {
+            return res.status(500).json({ 
+                error: 'Service temporarily unavailable',
+                details: 'Audio processing service is not properly configured. Please try again later.'
+            });
         }
 
         console.log('Fetching playlist info for:', url);
