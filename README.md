@@ -1,144 +1,119 @@
-# Soundclouder 🎵
+# CNVRTR - SoundCloud Playlist Downloader
 
-A simple and modern web application for downloading SoundCloud playlists. Built with a clean, tech-focused design featuring orange accents.
+A professional DJ music conversion tool for downloading SoundCloud playlists.
 
 ## Features
 
-- 🎶 **Playlist Parsing**: Paste any SoundCloud playlist URL to fetch track information
-- ⬇️ **Individual Downloads**: Download tracks one by one
-- 📦 **Bulk Download**: Download entire playlists at once
-- 🎧 **Audio Preview**: Preview downloaded tracks directly in the browser
-- 🔗 **SoundCloud Links**: Click track titles to open original SoundCloud pages
-- 🧹 **Easy Cleanup**: Clear all downloads with one click
-- 📱 **Responsive Design**: Works on desktop and mobile devices
-
-## Prerequisites
-
-Before you begin, ensure you have the following installed:
-- [Node.js](https://nodejs.org/) (version 14 or higher)
-- [npm](https://www.npmjs.com/) (comes with Node.js)
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) or [youtube-dl](https://youtube-dl.org/) (required for downloading)
-
-### Installing yt-dlp
-
-**macOS (using Homebrew):**
-```bash
-brew install yt-dlp
-```
-
-**Windows:**
-```bash
-pip install yt-dlp
-```
-
-**Linux:**
-```bash
-pip install yt-dlp
-```
+- Download entire SoundCloud playlists
+- Custom file path and naming options
+- Real-time download progress tracking
+- Individual track download buttons with status indicators
+- Error handling with hover tooltips
+- Duplicate prevention system
+- Modern, responsive UI
 
 ## Installation
 
-1. **Clone or download this repository**
-2. **Navigate to the project directory:**
-   ```bash
-   cd Soundclouder
-   ```
+1. Clone the repository:
+```bash
+git clone https://github.com/prestonschlagheck/cnvrtr.git
+cd soundclouder
+```
 
-3. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+2. Install dependencies:
+```bash
+npm install
+```
 
-## Usage
+3. Start the development server:
+```bash
+npm start
+```
 
-1. **Start the server:**
-   ```bash
-   npm start
-   ```
+4. Open your browser to `http://localhost:3000`
 
-2. **Open your browser and go to:**
-   ```
-   http://localhost:3000
-   ```
+## Deployment
 
-3. **Using the application:**
-   - Paste a SoundCloud playlist URL (e.g., `https://soundcloud.com/user/sets/playlist-name`)
-   - Click "Fetch Playlist" to load the tracks
-   - Use "Download All Tracks" to download the entire playlist
-   - Or click individual "Download" buttons for specific tracks
-   - After downloading, use the preview buttons (▶) to listen to tracks
-   - Click track titles to open them on SoundCloud
-   - Use "Clear Downloads" to remove all downloaded files
+### Local Development
+The app works fully when running locally with all download features supported.
+
+### Vercel Deployment
+The app is configured for Vercel deployment with the following considerations:
+
+#### ✅ **What Works on Vercel:**
+- Playlist information fetching
+- Track metadata extraction
+- UI and frontend functionality
+- Progress tracking and status updates
+
+#### ⚠️ **Limitations on Vercel:**
+- **File Downloads**: Due to serverless limitations, downloaded files are stored temporarily and may not be accessible to users
+- **Custom Paths**: Custom download paths don't work in serverless environments
+- **Individual Track Downloads**: Limited functionality due to streaming restrictions
+- **Large Playlists**: May timeout due to serverless function limits (300 seconds max)
+
+#### **Vercel Configuration:**
+The project includes:
+- `vercel.json` - Deployment configuration
+- `/api` folder - Serverless functions for each endpoint
+- Static file serving from `/public` folder
+
+#### **For Full Functionality:**
+Consider deploying to platforms that support persistent file systems:
+- Traditional VPS (DigitalOcean, Linode)
+- Railway
+- Render
+- Heroku
+
+## Dependencies
+
+- `express` - Web framework
+- `youtube-dl-exec` - SoundCloud content extraction
+- `fs-extra` - File system operations
+- `cors` - Cross-origin requests
+
+## Legal Notice
+
+**Important**: This tool is for personal use only. Users are responsible for complying with SoundCloud's Terms of Service and applicable copyright laws. Only download content you have permission to download.
 
 ## Development
 
-For development with auto-restart:
+### Project Structure
+```
+├── public/           # Frontend files
+│   ├── index.html   # Landing page
+│   ├── app.html     # Main application
+│   ├── script.js    # Frontend logic
+│   └── styles.css   # Styling
+├── api/             # Vercel serverless functions
+│   ├── playlist-info.js
+│   ├── download-all.js
+│   ├── download-custom.js
+│   ├── download-track.js
+│   └── track-preview.js
+├── server.js        # Local development server
+└── vercel.json      # Vercel deployment config
+```
+
+### Local Development
 ```bash
-npm run dev
+npm run dev  # Uses nodemon for auto-restart
 ```
 
-## Project Structure
-
-```
-Soundclouder/
-├── server.js          # Express.js backend server
-├── package.json       # Dependencies and scripts
-├── public/            # Frontend files
-│   ├── index.html     # Main HTML file
-│   ├── styles.css     # CSS styling
-│   └── script.js      # Frontend JavaScript
-├── downloads/         # Downloaded audio files (created automatically)
-└── README.md         # This file
-```
-
-## API Endpoints
-
-- `POST /api/playlist-info` - Fetch playlist information from SoundCloud URL
-- `POST /api/download-track` - Download a single track
-- `POST /api/download-all` - Download multiple tracks
-- `DELETE /api/clear-downloads` - Clear all downloaded files
-- `GET /downloads/:filename` - Serve downloaded audio files
-
-## Technologies Used
-
-- **Backend**: Node.js, Express.js
-- **Frontend**: Vanilla JavaScript, HTML5, CSS3
-- **Downloader**: youtube-dl-exec (yt-dlp wrapper)
-- **Fonts**: Inter (Google Fonts)
-
-## Notes
-
-- **Legal Disclaimer**: This tool is for personal use only. Respect copyright laws and SoundCloud's terms of service.
-- **Audio Quality**: Downloads are converted to MP3 format for compatibility.
-- **Rate Limiting**: The app downloads tracks sequentially to avoid overwhelming servers.
-- **Storage**: Downloaded files are stored in the `downloads/` directory.
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"youtube-dl not found" error:**
-   - Make sure yt-dlp is installed and available in your PATH
-   - Try reinstalling yt-dlp: `pip install --upgrade yt-dlp`
-
-2. **Downloads failing:**
-   - Check your internet connection
-   - Verify the SoundCloud URL is valid and publicly accessible
-   - Some tracks may be region-restricted or require authentication
-
-3. **Preview not working:**
-   - Ensure the track has been downloaded first
-   - Check browser console for any JavaScript errors
-   - Try clearing downloads and re-downloading
-
-4. **Port already in use:**
-   - Change the port in `server.js` or kill the process using port 3000
-   - Use: `lsof -ti:3000 | xargs kill -9` (macOS/Linux)
-
-## Contributing
-
-Feel free to submit issues and enhancement requests!
+### Environment Variables
+No environment variables required for basic functionality.
 
 ## License
 
-This project is licensed under the MIT License - see the package.json file for details. 
+MIT License - See LICENSE file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+---
+
+**Note**: For production use with full download capabilities, consider deploying to a traditional server environment rather than serverless platforms. 
