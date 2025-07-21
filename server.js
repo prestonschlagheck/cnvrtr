@@ -18,9 +18,10 @@ async function runYtDlp(url, options = {}) {
         if (options.noCheckCertificates) args.push('--no-check-certificates');
         if (options.extractFlat) args.push('--extract-flat', options.extractFlat);
         
-        console.log('Running yt-dlp with args:', ['yt-dlp', ...args]);
+        const ytdlpCommand = findYtDlpCommand();
+        console.log('Running yt-dlp with command:', ytdlpCommand, 'args:', args);
         
-        const ytdlp = spawn('yt-dlp', args);
+        const ytdlp = spawn(ytdlpCommand, args);
         let stdout = '';
         let stderr = '';
         
@@ -49,6 +50,21 @@ async function runYtDlp(url, options = {}) {
             reject(new Error(`Failed to spawn yt-dlp: ${error.message}`));
         });
     });
+}
+
+// Helper function to find yt-dlp binary location
+function findYtDlpCommand() {
+    const ytdlpPaths = ['yt-dlp', './yt-dlp', 'node_modules/.bin/yt-dlp'];
+    
+    for (const path of ytdlpPaths) {
+        try {
+            require('fs').accessSync(path, require('fs').constants.F_OK);
+            return path;
+        } catch (e) {
+            // Continue to next path
+        }
+    }
+    return 'yt-dlp'; // fallback
 }
 
 console.log('Using direct yt-dlp spawn approach');
@@ -95,8 +111,12 @@ app.get('/health', async (req, res) => {
             path: process.env.PATH || 'not set'
         };
         
+        // Test yt-dlp using our helper function
+        const ytdlpCommand = findYtDlpCommand();
+        checks.ytdlp_command_found = ytdlpCommand;
+        
         try {
-            const { stdout, stderr } = await execAsync('yt-dlp --version');
+            const { stdout, stderr } = await execAsync(`${ytdlpCommand} --version`);
             checks.ytdlp_version = stdout.trim();
             checks.ytdlp_status = 'ok';
         } catch (error) {
@@ -110,6 +130,14 @@ app.get('/health', async (req, res) => {
             checks.ytdlp_path = stdout.trim();
         } catch (error) {
             checks.ytdlp_path = 'not found';
+        }
+        
+        // Check if our found command exists
+        try {
+            require('fs').accessSync(ytdlpCommand, require('fs').constants.F_OK);
+            checks.ytdlp_file_exists = 'yes';
+        } catch (error) {
+            checks.ytdlp_file_exists = 'no';
         }
         
         const isHealthy = checks.ytdlp_status === 'ok';
@@ -343,7 +371,8 @@ app.post('/api/download-all', async (req, res) => {
                 
                 // Download with yt-dlp - use spawn directly for downloads
                 await new Promise((resolve, reject) => {
-                    const ytdlp = spawn('yt-dlp', [
+                    const ytdlpCommand = findYtDlpCommand();
+                    const ytdlp = spawn(ytdlpCommand, [
                         track.url,
                         '-o', outputPath,
                         '--format', 'best[ext=mp3]/best[ext=m4a]/best',
@@ -493,7 +522,8 @@ app.post('/api/download-custom', async (req, res) => {
                 
                 // Download with yt-dlp - use spawn directly for downloads
                 await new Promise((resolve, reject) => {
-                    const ytdlp = spawn('yt-dlp', [
+                    const ytdlpCommand = findYtDlpCommand();
+                    const ytdlp = spawn(ytdlpCommand, [
                         track.url,
                         '-o', outputPath,
                         '--format', 'best[ext=mp3]/best[ext=m4a]/best',

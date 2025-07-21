@@ -4,16 +4,35 @@ services:
     env: node
     buildCommand: |
       npm install
-      echo "Installing yt-dlp globally..."
-      curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /opt/render/project/src/yt-dlp
-      chmod +x /opt/render/project/src/yt-dlp
-      echo "Creating symlink..."
-      ln -sf /opt/render/project/src/yt-dlp /opt/render/project/src/node_modules/.bin/yt-dlp
-      echo "Verifying installation..."
-      /opt/render/project/src/yt-dlp --version
+      echo "=== INSTALLING YT-DLP WITH MULTIPLE FALLBACKS ==="
+      
+      # Method 1: Direct binary download to multiple locations
+      echo "Method 1: Downloading yt-dlp binary..."
+      curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ./yt-dlp
+      chmod +x ./yt-dlp
+      cp ./yt-dlp /usr/local/bin/yt-dlp 2>/dev/null || echo "Cannot copy to /usr/local/bin"
+      cp ./yt-dlp node_modules/.bin/yt-dlp 2>/dev/null || mkdir -p node_modules/.bin && cp ./yt-dlp node_modules/.bin/yt-dlp
+      
+      # Method 2: Try pip installation as backup
+      echo "Method 2: Trying pip installation..."
+      python3 -m pip install --user yt-dlp 2>/dev/null || echo "Pip installation failed"
+      
+      # Method 3: Try apt installation
+      echo "Method 3: Trying apt installation..."
+      apt-get update && apt-get install -y yt-dlp 2>/dev/null || echo "Apt installation failed"
+      
+      # Verification
+      echo "=== VERIFICATION ==="
+      echo "Current directory: $(pwd)"
+      echo "Files in current dir: $(ls -la | head -10)"
+      echo "Testing ./yt-dlp: $(./yt-dlp --version 2>/dev/null || echo 'FAILED')"
+      echo "Testing yt-dlp in PATH: $(yt-dlp --version 2>/dev/null || echo 'FAILED')"
+      echo "Which yt-dlp: $(which yt-dlp || echo 'NOT FOUND')"
+      echo "PATH is: $PATH"
+      
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PATH
-        value: /opt/render/project/src/node_modules/.bin:$PATH 
+        value: /opt/render/project/src/node_modules/.bin:/opt/render/project/src:$HOME/.local/bin:/usr/local/bin:$PATH 
