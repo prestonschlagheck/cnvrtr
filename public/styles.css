@@ -659,6 +659,82 @@ body {
     z-index: 1000;
 }
 
+/* Serverless Notice Banner */
+.serverless-notice {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    color: white;
+    padding: 1rem 2rem;
+    margin-bottom: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.notice-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.notice-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.notice-text {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.notice-text strong {
+    font-weight: 600;
+}
+
+.notice-details {
+    opacity: 0.9;
+    font-size: 0.9rem;
+}
+
+.notice-details a {
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.notice-details a:hover {
+    color: white;
+}
+
+.notice-details-expanded {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.notice-details-expanded p {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+}
+
+.notice-details-expanded ul,
+.notice-details-expanded ol {
+    margin: 0.5rem 0 1rem 1.5rem;
+}
+
+.notice-details-expanded li {
+    margin: 0.25rem 0;
+}
+
+.notice-details-expanded code {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.85rem;
+}
+
 /* Utility Classes */
 .hidden {
     display: none !important;

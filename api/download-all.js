@@ -1,21 +1,14 @@
-const { create: createYoutubeDl } = require('youtube-dl-exec');
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
-
-// Create youtube-dl instance - Vercel will handle the binary
-const youtubedl = createYoutubeDl();
-
-// Helper function to sanitize filenames
-function sanitizeFilename(filename) {
-    return filename
-        .replace(/[<>:"/\\|?*]/g, '-')  // Replace invalid characters
-        .replace(/\s+/g, ' ')          // Replace multiple spaces with single space
-        .trim()                        // Remove leading/trailing whitespace
-        .substring(0, 255);            // Limit length to 255 characters
-}
-
 module.exports = async function handler(req, res) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Handle preflight OPTIONS request
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     // Only allow POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -32,116 +25,49 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // Use temp directory for Vercel
-    const tempDir = os.tmpdir();
-    const playlistDir = path.join(tempDir, sanitizeFilename(playlistTitle));
-
     try {
-        await fs.ensureDir(playlistDir);
-        console.log(`Starting download of ${tracks.length} tracks to: ${playlistDir}`);
+        res.write(`🚨 SERVERLESS LIMITATION NOTICE 🚨\n\n`);
+        res.write(`Playlist: ${playlistTitle}\n`);
+        res.write(`Tracks to download: ${tracks.length}\n\n`);
         
-        // Track problematic downloads
-        const problemTracks = [];
-        let successCount = 0;
+        res.write(`❌ DOWNLOAD FAILED: Serverless Environment Limitation\n\n`);
+        res.write(`This feature requires system binaries (yt-dlp) that are not available in serverless environments like Vercel.\n\n`);
+        
+        res.write(`✅ TO ENABLE FULL DOWNLOAD FUNCTIONALITY:\n`);
+        res.write(`1. Clone this repository locally\n`);
+        res.write(`2. Install dependencies: npm install\n`);
+        res.write(`3. Install yt-dlp: pip install yt-dlp\n`);
+        res.write(`4. Run locally: npm start\n`);
+        res.write(`5. Visit http://localhost:3000\n\n`);
+        
+        res.write(`💡 ALTERNATIVE HOSTING OPTIONS:\n`);
+        res.write(`- Deploy to Railway, Render, or traditional VPS\n`);
+        res.write(`- Use Docker containers with persistent storage\n`);
+        res.write(`- Run on your own server with full system access\n\n`);
 
+        // Simulate download progress for demo
         for (let i = 0; i < tracks.length; i++) {
             const track = tracks[i];
-            const trackNum = i + 1;
+            res.write(`❌ Cannot download: ${track.title}\n`);
             
-            try {
-                res.write(`Downloading ${trackNum}/${tracks.length}: ${track.title}\n`);
-                
-                const sanitizedTitle = sanitizeFilename(track.title);
-                const outputPath = path.join(playlistDir, `${sanitizedTitle}.%(ext)s`);
-                
-                // Download with yt-dlp - using restrictive format to prevent duplicates
-                await youtubedl(track.url, {
-                    output: outputPath,
-                    format: 'best[ext=mp3]/best[ext=m4a]/best',
-                    extractAudio: true,
-                    audioFormat: 'mp3',
-                    audioQuality: '0',
-                    noPlaylist: true, // Ensure we only get single track
-                    keepVideo: false, // Don't keep original video file
-                    writeInfoJson: false, // Don't write metadata files
-                    writeDescription: false, // Don't write description files
-                    writeThumbnail: false // Don't write thumbnail files
-                });
-
-                // Check if file was created and get its size/duration
-                const files = await fs.readdir(playlistDir);
-                const trackFiles = files.filter(file => file.startsWith(sanitizedTitle) && (file.endsWith('.mp3') || file.endsWith('.m4a')));
-                
-                if (trackFiles.length > 0) {
-                    const trackFile = trackFiles[0];
-                    const filePath = path.join(playlistDir, trackFile);
-                    const stats = await fs.stat(filePath);
-                    
-                    // Check if file is suspiciously small (likely a 30-second clip)
-                    // Files under 1MB are likely truncated/preview versions
-                    if (stats.size < 1024 * 1024) { // Less than 1MB
-                        problemTracks.push({
-                            title: track.title,
-                            issue: 'Restricted content (30-second preview only)',
-                            reason: 'Region restriction, authentication required, or private track'
-                        });
-                        res.write(`Download completed for: ${track.title} (preview only)\n`);
-                    } else {
-                        successCount++;
-                        res.write(`Download completed for: ${track.title}\n`);
-                    }
-                } else {
-                    problemTracks.push({
-                        title: track.title,
-                        issue: 'Download failed',
-                        reason: 'Track not accessible or removed'
-                    });
-                    res.write(`Download failed for: ${track.title}\n`);
-                }
-
-            } catch (error) {
-                console.error(`Error downloading track ${track.title}:`, error.message);
-                
-                // Categorize the error
-                let issue = 'Download failed';
-                let reason = 'Unknown error';
-                
-                if (error.message.includes('Private')) {
-                    issue = 'Private track';
-                    reason = 'Track is private or requires authentication';
-                } else if (error.message.includes('region') || error.message.includes('geo')) {
-                    issue = 'Region restricted';
-                    reason = 'Content not available in your region';
-                } else if (error.message.includes('removed') || error.message.includes('unavailable')) {
-                    issue = 'Track unavailable';
-                    reason = 'Track has been removed or is no longer available';
-                } else {
-                    reason = 'Technical download error';
-                }
-                
-                problemTracks.push({
-                    title: track.title,
-                    issue: issue,
-                    reason: reason
-                });
-                
-                res.write(`Download failed for: ${track.title}\n`);
-            }
+            // Add a small delay to simulate processing
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        // Send completion message with summary
-        res.write(`\nDownload complete! ${successCount}/${tracks.length} tracks downloaded successfully.\n`);
-        res.write(`Note: Files are temporarily stored on the server. This feature is limited in serverless environments.\n`);
+        res.write(`\n📊 SUMMARY:\n`);
+        res.write(`- Attempted: ${tracks.length} tracks\n`);
+        res.write(`- Downloaded: 0 tracks\n`);
+        res.write(`- Failed: ${tracks.length} tracks (serverless limitation)\n\n`);
         
-        if (problemTracks.length > 0) {
-            res.write(`\nISSUES_DETECTED:${JSON.stringify(problemTracks)}\n`);
-        }
+        res.write(`ℹ️  This is a demo running on Vercel's serverless platform.\n`);
+        res.write(`For full functionality, please run the application locally.\n`);
         
         res.end();
 
     } catch (error) {
-        console.error('Download all error:', error);
-        res.write(`Error: ${error.message}\n`);
+        console.error('Demo download error:', error);
+        res.write(`\n❌ Error: ${error.message}\n`);
+        res.write(`This is a limitation of the serverless environment.\n`);
         res.end();
     }
 } 

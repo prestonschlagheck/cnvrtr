@@ -38,39 +38,56 @@ npm start
 The app works fully when running locally with all download features supported.
 
 ### Vercel Deployment
-The app is configured for Vercel deployment with the following considerations:
+
+🎯 **Live Demo**: The app is deployed on Vercel as a UI demonstration.
 
 #### ✅ **What Works on Vercel:**
-- Playlist information fetching
-- Track metadata extraction
-- UI and frontend functionality
-- Progress tracking and status updates
+- Complete UI/UX demonstration
+- Playlist URL processing (demo mode)
+- All frontend functionality and animations
+- Error handling and progress tracking interfaces
 
-#### ⚠️ **Limitations on Vercel:**
-- **File Downloads**: Due to serverless limitations, downloaded files are stored temporarily and may not be accessible to users
-- **Custom Paths**: Custom download paths don't work in serverless environments
-- **Individual Track Downloads**: Limited functionality due to streaming restrictions
-- **Large Playlists**: May timeout due to serverless function limits (300 seconds max)
+#### ⚠️ **Serverless Limitations:**
+- **No Audio Downloads**: Requires system binaries (yt-dlp) not available in serverless
+- **Demo Data Only**: Shows simulated playlist information
+- **No File System Access**: Cannot save files to user's computer
+- **No Custom Paths**: Serverless functions don't have persistent storage
 
-#### **Vercel Configuration:**
-The project includes:
-- `vercel.json` - Deployment configuration
-- `/api` folder - Serverless functions for each endpoint
-- Static file serving from `/public` folder
+#### **Deployment Configuration:**
+- `vercel.json` - Modern Vercel configuration
+- `/api` folder - Serverless functions for demo endpoints
+- `/public` folder - Static assets
+- Zero dependencies - Removed problematic packages
 
-#### **For Full Functionality:**
-Consider deploying to platforms that support persistent file systems:
-- Traditional VPS (DigitalOcean, Linode)
-- Railway
-- Render
-- Heroku
+#### **For Production Use:**
+**Recommended hosting platforms for full functionality:**
+- **Railway** - Full Node.js environment with persistent storage
+- **Render** - Container-based hosting with file system access
+- **Traditional VPS** - Complete control (DigitalOcean, Linode, etc.)
+- **Docker** - Custom environment with required binaries
+
+**Local Development** (Full functionality):
+```bash
+git clone https://github.com/prestonschlagheck/cnvrtr.git
+cd soundclouder
+npm install
+pip install yt-dlp  # Required for audio processing
+npm start
+```
 
 ## Dependencies
 
+### Vercel Deployment (Current)
+- **Zero NPM dependencies** - Optimized for serverless deployment
+- Pure serverless functions with demo data
+- Static file serving only
+
+### Local Development (Full Functionality)
 - `express` - Web framework
-- `youtube-dl-exec` - SoundCloud content extraction
+- `youtube-dl-exec` - SoundCloud content extraction  
 - `fs-extra` - File system operations
 - `cors` - Cross-origin requests
+- `yt-dlp` - System binary for audio processing (via pip)
 
 ## Legal Notice
 

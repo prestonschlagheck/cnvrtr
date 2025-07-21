@@ -1,21 +1,14 @@
-const { create: createYoutubeDl } = require('youtube-dl-exec');
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
-
-// Create youtube-dl instance - Vercel will handle the binary
-const youtubedl = createYoutubeDl();
-
-// Helper function to sanitize filenames
-function sanitizeFilename(filename) {
-    return filename
-        .replace(/[<>:"/\\|?*]/g, '-')  // Replace invalid characters
-        .replace(/\s+/g, ' ')          // Replace multiple spaces with single space
-        .trim()                        // Remove leading/trailing whitespace
-        .substring(0, 255);            // Limit length to 255 characters
-}
-
 module.exports = async function handler(req, res) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Handle preflight OPTIONS request
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     // Only allow POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -32,118 +25,57 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // Note: In Vercel, we can't actually use custom paths outside the temp directory
-    // Use temp directory for Vercel (serverless limitation)
-    const tempDir = os.tmpdir();
-    const playlistDir = path.join(tempDir, sanitizeFilename(playlistTitle));
-
     try {
-        await fs.ensureDir(playlistDir);
-        console.log(`Starting custom download of ${tracks.length} tracks to: ${playlistDir}`);
-        res.write(`Note: Custom paths are not supported in serverless environments. Using temporary storage.\n`);
+        res.write(`🚨 CUSTOM DOWNLOAD - SERVERLESS LIMITATION 🚨\n\n`);
+        res.write(`Playlist: ${playlistTitle}\n`);
+        res.write(`Custom Path: ${customPath || 'Default Downloads folder'}\n`);
+        res.write(`Tracks to download: ${tracks.length}\n\n`);
         
-        // Track problematic downloads
-        const problemTracks = [];
-        let successCount = 0;
+        res.write(`❌ CUSTOM DOWNLOAD FAILED: Serverless Environment Limitation\n\n`);
+        res.write(`Custom file paths and audio downloading require:\n`);
+        res.write(`- Local file system access\n`);
+        res.write(`- System binaries (yt-dlp)\n`);
+        res.write(`- Persistent storage\n\n`);
+        res.write(`None of these are available in Vercel's serverless environment.\n\n`);
+        
+        res.write(`✅ TO ENABLE CUSTOM DOWNLOAD FUNCTIONALITY:\n`);
+        res.write(`1. Clone this repository locally\n`);
+        res.write(`2. Install dependencies: npm install\n`);
+        res.write(`3. Install yt-dlp: pip install yt-dlp\n`);
+        res.write(`4. Run locally: npm start\n`);
+        res.write(`5. Use the custom path feature with full local file system access\n\n`);
+        
+        res.write(`💡 BENEFITS OF LOCAL DEPLOYMENT:\n`);
+        res.write(`- Download to any custom folder path\n`);
+        res.write(`- Full audio quality and format options\n`);
+        res.write(`- No timeout limitations\n`);
+        res.write(`- Direct file system access\n`);
+        res.write(`- Persistent storage\n\n`);
 
+        // Simulate custom download progress for demo
         for (let i = 0; i < tracks.length; i++) {
             const track = tracks[i];
-            const trackNum = i + 1;
+            res.write(`❌ Cannot download to custom path: ${track.title}\n`);
             
-            try {
-                res.write(`Downloading ${trackNum}/${tracks.length}: ${track.title}\n`);
-                
-                const sanitizedTitle = sanitizeFilename(track.title);
-                const outputPath = path.join(playlistDir, `${sanitizedTitle}.%(ext)s`);
-                
-                // Download with yt-dlp - using restrictive format to prevent duplicates
-                await youtubedl(track.url, {
-                    output: outputPath,
-                    format: 'best[ext=mp3]/best[ext=m4a]/best',
-                    extractAudio: true,
-                    audioFormat: 'mp3',
-                    audioQuality: '0',
-                    noPlaylist: true, // Ensure we only get single track
-                    keepVideo: false, // Don't keep original video file
-                    writeInfoJson: false, // Don't write metadata files
-                    writeDescription: false, // Don't write description files
-                    writeThumbnail: false // Don't write thumbnail files
-                });
-
-                // Check if file was created and get its size/duration
-                const files = await fs.readdir(playlistDir);
-                const trackFiles = files.filter(file => file.startsWith(sanitizedTitle) && (file.endsWith('.mp3') || file.endsWith('.m4a')));
-                
-                if (trackFiles.length > 0) {
-                    const trackFile = trackFiles[0];
-                    const filePath = path.join(playlistDir, trackFile);
-                    const stats = await fs.stat(filePath);
-                    
-                    // Check if file is suspiciously small (likely a 30-second clip)
-                    // Files under 1MB are likely truncated/preview versions
-                    if (stats.size < 1024 * 1024) { // Less than 1MB
-                        problemTracks.push({
-                            title: track.title,
-                            issue: 'Restricted content (30-second preview only)',
-                            reason: 'Region restriction, authentication required, or private track'
-                        });
-                        res.write(`Download completed for: ${track.title} (preview only)\n`);
-                    } else {
-                        successCount++;
-                        res.write(`Download completed for: ${track.title}\n`);
-                    }
-                } else {
-                    problemTracks.push({
-                        title: track.title,
-                        issue: 'Download failed',
-                        reason: 'Track not accessible or removed'
-                    });
-                    res.write(`Download failed for: ${track.title}\n`);
-                }
-
-            } catch (error) {
-                console.error(`Error downloading track ${track.title}:`, error.message);
-                
-                // Categorize the error
-                let issue = 'Download failed';
-                let reason = 'Unknown error';
-                
-                if (error.message.includes('Private')) {
-                    issue = 'Private track';
-                    reason = 'Track is private or requires authentication';
-                } else if (error.message.includes('region') || error.message.includes('geo')) {
-                    issue = 'Region restricted';
-                    reason = 'Content not available in your region';
-                } else if (error.message.includes('removed') || error.message.includes('unavailable')) {
-                    issue = 'Track unavailable';
-                    reason = 'Track has been removed or is no longer available';
-                } else {
-                    reason = 'Technical download error';
-                }
-                
-                problemTracks.push({
-                    title: track.title,
-                    issue: issue,
-                    reason: reason
-                });
-                
-                res.write(`Download failed for: ${track.title}\n`);
-            }
+            // Add a small delay to simulate processing
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        // Send completion message with summary
-        res.write(`\nDownload complete! ${successCount}/${tracks.length} tracks downloaded successfully.\n`);
-        res.write(`Note: Files are temporarily stored on the server. This feature is limited in serverless environments.\n`);
+        res.write(`\n📊 CUSTOM DOWNLOAD SUMMARY:\n`);
+        res.write(`- Target Location: ${customPath || 'Downloads folder'}\n`);
+        res.write(`- Attempted: ${tracks.length} tracks\n`);
+        res.write(`- Downloaded: 0 tracks\n`);
+        res.write(`- Failed: ${tracks.length} tracks (serverless limitation)\n\n`);
         
-        if (problemTracks.length > 0) {
-            res.write(`\nISSUES_DETECTED:${JSON.stringify(problemTracks)}\n`);
-        }
+        res.write(`ℹ️  Custom path downloads require local deployment.\n`);
+        res.write(`This demo shows the UI but cannot access the file system.\n`);
         
         res.end();
 
     } catch (error) {
-        console.error('Custom download error:', error);
-        res.write(`Error: ${error.message}\n`);
+        console.error('Demo custom download error:', error);
+        res.write(`\n❌ Error: ${error.message}\n`);
+        res.write(`Custom downloads are not supported in serverless environments.\n`);
         res.end();
     }
 } 

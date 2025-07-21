@@ -1,7 +1,14 @@
-const { create: createYoutubeDl } = require('youtube-dl-exec');
-const { spawn } = require('child_process');
-
 module.exports = async function handler(req, res) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Handle preflight OPTIONS request
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     // Only allow POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -14,55 +21,38 @@ module.exports = async function handler(req, res) {
             return res.status(400).json({ error: 'URL and title are required' });
         }
 
-        const sanitizedTitle = title.replace(/[^\w\s-]/g, '').trim();
-        console.log('Streaming track:', title);
-
-        // Set headers for file download
-        res.setHeader('Content-Disposition', `attachment; filename="${sanitizedTitle}.mp3"`);
-        res.setHeader('Content-Type', 'audio/mpeg');
-
-        // In a serverless environment, we need to be careful with binary paths
-        // Try to use yt-dlp from PATH or use youtube-dl-exec
-        try {
-            // Stream the audio directly to the response using youtube-dl-exec
-            const youtubedl = createYoutubeDl();
-            
-            // Create a temporary download and stream it
-            const audioStream = await youtubedl(url, {
-                extractAudio: true,
-                audioFormat: 'mp3',
-                audioQuality: '0',
-                embedMetadata: true,
-                noWarnings: true,
-                output: '-' // Output to stdout
-            });
-
-            // If youtubedl returns a buffer or stream, pipe it
-            if (audioStream && typeof audioStream.pipe === 'function') {
-                audioStream.pipe(res);
-            } else {
-                throw new Error('Unable to stream audio');
-            }
-
-        } catch (streamError) {
-            console.error('Streaming error:', streamError);
-            
-            // Fallback: Return an error message
-            if (!res.headersSent) {
-                res.status(500).json({ 
-                    error: 'Failed to stream track. Individual track downloads may not work in serverless environments.',
-                    suggestion: 'Try using the "Download All" feature instead.'
-                });
-            }
-        }
+        // Return error response explaining serverless limitations
+        res.status(503).json({ 
+            error: 'Individual track downloads not supported in serverless environment',
+            title: title,
+            message: 'Individual track streaming requires system binaries (yt-dlp) and direct file system access that are not available in Vercel\'s serverless environment.',
+            suggestions: [
+                'Use the "Download All" feature for playlist processing',
+                'Run the application locally for full download capabilities',
+                'Deploy to a traditional server with full system access'
+            ],
+            localSetup: {
+                steps: [
+                    'Clone this repository locally',
+                    'Install dependencies: npm install', 
+                    'Install yt-dlp: pip install yt-dlp',
+                    'Run locally: npm start',
+                    'Individual track downloads will work at http://localhost:3000'
+                ]
+            },
+            alternativeHosts: [
+                'Railway - Full server environment',
+                'Render - Container-based hosting', 
+                'Traditional VPS - Complete system access',
+                'Docker containers - Custom environment'
+            ]
+        });
 
     } catch (error) {
-        console.error('Error downloading track:', error);
-        if (!res.headersSent) {
-            res.status(500).json({ 
-                error: 'Failed to download track',
-                details: 'Individual downloads are limited in serverless environments. Please use batch download instead.'
-            });
-        }
+        console.error('Individual download limitation:', error);
+        res.status(500).json({ 
+            error: 'Serverless environment limitation',
+            details: 'Individual track downloads require local deployment with full system access to audio processing binaries.'
+        });
     }
 } 

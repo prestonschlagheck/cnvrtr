@@ -47,6 +47,32 @@
             </div>
         </header>
 
+        <!-- Serverless Limitation Notice -->
+        <div class="serverless-notice">
+            <div class="notice-content">
+                <span class="notice-icon">⚠️</span>
+                <div class="notice-text">
+                    <strong>Demo Mode:</strong> This is running on Vercel's serverless platform. 
+                    <span class="notice-details">Audio downloads require local deployment. <a href="#" onclick="toggleNoticeDetails()">Learn more</a></span>
+                </div>
+            </div>
+            <div id="noticeDetails" class="notice-details-expanded hidden">
+                <p><strong>Current Limitations:</strong></p>
+                <ul>
+                    <li>✅ Playlist browsing and UI demonstration</li>
+                    <li>❌ Actual audio file downloading</li>
+                    <li>❌ Custom file paths</li>
+                </ul>
+                <p><strong>For Full Functionality:</strong></p>
+                <ol>
+                    <li>Clone this repository locally</li>
+                    <li>Install yt-dlp: <code>pip install yt-dlp</code></li>
+                    <li>Run: <code>npm start</code></li>
+                    <li>Visit: <code>http://localhost:3000</code></li>
+                </ol>
+            </div>
+        </div>
+
         <main class="main">
             <div class="input-section">
                 <div class="input-container">
