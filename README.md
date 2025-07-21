@@ -1,131 +1,103 @@
-# CNVRTR - SoundCloud Playlist Downloader
+# Soundclouder - Professional SoundCloud Playlist Downloader
 
-A professional DJ music conversion tool for downloading SoundCloud playlists.
+A professional SoundCloud playlist downloader and converter tool that transforms any playlist into high-quality MP3 files.
 
 ## Features
 
-- Download entire SoundCloud playlists
-- Custom file path and naming options
-- Real-time download progress tracking
-- Individual track download buttons with status indicators
-- Error handling with hover tooltips
-- Duplicate prevention system
-- Modern, responsive UI
+- **Playlist Support**: Download entire SoundCloud playlists with one click
+- **High Quality**: Convert to MP3 format with best available quality
+- **Batch Processing**: Handle multiple tracks efficiently
+- **Modern UI**: Clean, professional interface
+- **Real-time Progress**: Track download progress in real-time
 
-## Installation
+## Railway Deployment
 
-1. Clone the repository:
+This project is configured for easy deployment on Railway. Follow these steps:
+
+### 1. Connect to Railway
+
+1. Go to [Railway](https://railway.app)
+2. Create a new project
+3. Connect your GitHub repository
+4. Railway will automatically detect the Dockerfile and deploy
+
+### 2. Environment Variables (Optional)
+
+The following environment variables can be configured in Railway:
+
+- `NODE_ENV`: Set to `production` (default)
+- `PORT`: Port number (Railway sets this automatically)
+
+### 3. Deployment
+
+Railway will automatically:
+- Build the Docker image using the provided Dockerfile
+- Install all dependencies including yt-dlp
+- Start the application on the assigned port
+- Provide a public URL for your application
+
+### 4. Custom Domain
+
+To add a custom domain:
+1. Go to your Railway project settings
+2. Navigate to the "Domains" section
+3. Add your custom domain
+4. Configure DNS settings as instructed by Railway
+
+## Local Development
+
+### Prerequisites
+
+- Node.js 18+
+- yt-dlp (will be installed automatically)
+
+### Installation
+
 ```bash
-git clone https://github.com/prestonschlagheck/cnvrtr.git
+# Clone the repository
+git clone <repository-url>
 cd soundclouder
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 npm install
+
+# Start the development server
+npm run dev
 ```
 
-3. Start the development server:
-```bash
-npm start
-```
+The application will be available at `http://localhost:3000`
 
-4. Open your browser to `http://localhost:3000`
+## Usage
 
-## Deployment
+1. Open the application in your browser
+2. Paste a SoundCloud playlist or track URL
+3. Click "CNVRT." to start the download
+4. Wait for the conversion to complete
+5. Download your MP3 files
 
-### Local Development
-The app works fully when running locally with all download features supported.
+## Technical Details
 
-### Render Deployment
+- **Backend**: Node.js with Express
+- **Frontend**: Vanilla JavaScript with modern CSS
+- **Audio Processing**: yt-dlp for high-quality audio extraction
+- **Deployment**: Docker container optimized for Railway
 
-🚀 **Production Ready**: Fully functional deployment on Render with complete audio download capabilities.
+## Troubleshooting
 
-#### ✅ **Full Functionality on Render:**
-- ✅ **Real SoundCloud playlist fetching**
-- ✅ **Complete audio file downloading**
-- ✅ **Custom file paths and naming**
-- ✅ **Individual track downloads**
-- ✅ **All UI improvements and animations**
-- ✅ **Error handling with hover tooltips**
-- ✅ **Duplicate prevention system**
+### Railway Deployment Issues
 
-#### **Deployment Configuration:**
-- `render.yaml` - Automatic yt-dlp installation during build
-- `server.js` - Full Express server with all functionality
-- `package.json` - Complete dependency list
-- **No limitations** - Full server environment
+If you encounter deployment issues:
 
-#### **Deploy to Render:**
-1. **Fork/Clone this repository**
-2. **Sign up at [render.com](https://render.com)**
-3. **Connect GitHub repository**
-4. **Render auto-detects Node.js and installs dependencies**
-5. **yt-dlp installed automatically via render.yaml**
-6. **Full functionality available immediately**
+1. **Build Failures**: Check the Railway logs for specific error messages
+2. **yt-dlp Installation**: The Dockerfile includes multiple fallback methods for yt-dlp installation
+3. **Port Issues**: Railway automatically sets the PORT environment variable
 
-#### **Custom Domain Setup:**
-- Add custom domain in Render dashboard
-- Point your DNS to Render's servers
-- SSL certificate automatically provisioned
-- **Estimated cost**: $0-7/month (750 free hours)
+### Common Issues
 
-**Local Development**:
-```bash
-git clone https://github.com/prestonschlagheck/cnvrtr.git
-cd soundclouder
-npm install
-pip install yt-dlp  # Required for audio processing
-npm start
-```
-
-## Dependencies
-
-### Production & Development
-- `express` - Web framework and API server
-- `youtube-dl-exec` - SoundCloud content extraction wrapper
-- `fs-extra` - Enhanced file system operations
-- `cors` - Cross-origin request handling
-- `yt-dlp` - System binary for audio processing (auto-installed via render.yaml)
-- `nodemon` - Development server with auto-restart
-
-## Legal Notice
-
-**Important**: This tool is for personal use only. Users are responsible for complying with SoundCloud's Terms of Service and applicable copyright laws. Only download content you have permission to download.
-
-## Development
-
-### Project Structure
-```
-├── index.html       # Landing page
-├── app.html         # Main application  
-├── script.js        # Frontend logic
-├── styles.css       # Styling
-├── server.js        # Express server with full functionality
-├── package.json     # Dependencies and scripts
-├── render.yaml      # Render deployment configuration
-└── README.md        # Documentation
-```
-
-### Local Development
-```bash
-npm run dev  # Uses nodemon for auto-restart
-```
-
-### Environment Variables
-No environment variables required for basic functionality.
+- **CORS Errors**: The application includes CORS middleware for cross-origin requests
+- **Memory Issues**: The application is optimized for Railway's memory constraints
+- **Timeout Issues**: Long downloads are handled with streaming responses
 
 ## License
 
-MIT License - See LICENSE file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
----
-
-**Note**: For production use with full download capabilities, consider deploying to a traditional server environment rather than serverless platforms. 
+MIT License - see LICENSE file for details. 
