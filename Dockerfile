@@ -20,7 +20,7 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 COPY package*.json ./
 
 # Install Node.js dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install
 
 # Copy application files
 COPY . .

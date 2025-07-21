@@ -27,8 +27,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/prestonschlagheck/cnvrtr.git"
-  },
-  "cacheDirectories": [
-    "node_modules"
-  ]
+  }
 } 
