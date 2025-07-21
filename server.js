@@ -92,23 +92,61 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Simple connectivity test endpoint
+app.get('/ping', (req, res) => {
+    res.status(200).json({ 
+        status: 'ok', 
+        message: 'pong',
+        timestamp: new Date().toISOString()
+    });
+});
+
 app.get('/app.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'app.html'));
 });
 
-// Health check endpoint to verify yt-dlp is working
-app.get('/health', async (req, res) => {
+// Simple health check endpoint for Railway
+app.get('/health', (req, res) => {
+    try {
+        // Basic server health check - don't depend on yt-dlp for initial deployment
+        const checks = {
+            server: 'ok',
+            timestamp: new Date().toISOString(),
+            node_env: process.env.NODE_ENV || 'development',
+            port: process.env.PORT || 3000,
+            uptime: process.uptime()
+        };
+        
+        // Always return 200 for basic health check
+        // Railway will retry if the service is truly unavailable
+        res.status(200).json({
+            status: 'ok',
+            checks: checks,
+            message: 'Server is running'
+        });
+        
+    } catch (error) {
+        res.status(500).json({ 
+            status: 'error', 
+            message: 'Health check failed',
+            error: error.message 
+        });
+    }
+});
+
+// Detailed health check endpoint for debugging
+app.get('/health/detailed', async (req, res) => {
     try {
         const { exec } = require('child_process');
         const { promisify } = require('util');
         const execAsync = promisify(exec);
         
-        // Check multiple things
         const checks = {
             server: 'ok',
             approach: 'direct spawn (no wrapper)',
             node_env: process.env.NODE_ENV || 'development',
-            path: process.env.PATH || 'not set'
+            path: process.env.PATH || 'not set',
+            uptime: process.uptime()
         };
         
         // Test yt-dlp using our helper function
@@ -715,4 +753,6 @@ app.post('/api/track-preview', async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Health check available at http://0.0.0.0:${PORT}/health`);
+    console.log(`Detailed health check at http://0.0.0.0:${PORT}/health/detailed`);
 }); 

@@ -63,8 +63,11 @@ ENV NODE_ENV=production
 ENV PATH="/app/node_modules/.bin:/app:/home/appuser/.local/bin:/usr/local/bin:$PATH"
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:3000/health || exit 1
 
+# Make startup script executable
+RUN chmod +x start.sh
+
 # Start the application
-CMD ["npm", "start"] 
+CMD ["./start.sh"] 
