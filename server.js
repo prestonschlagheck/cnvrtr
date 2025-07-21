@@ -6,17 +6,18 @@ const { create: createYoutubeDl } = require('youtube-dl-exec');
 const { spawn } = require('child_process');
 const os = require('os');
 
-// Create a custom youtube-dl instance with better error handling
+// Create a more robust youtube-dl instance
+const ytDlpBinary = process.env.NODE_ENV === 'production' ? 'yt-dlp' : 'yt-dlp';
 let youtubedl;
+
 try {
     youtubedl = createYoutubeDl({
-        pythonPath: 'python3',
-        ytDlpPath: 'yt-dlp'
+        ytDlpPath: ytDlpBinary
     });
+    console.log('yt-dlp initialized successfully');
 } catch (error) {
     console.error('Failed to initialize yt-dlp:', error);
-    // Fallback to default
-    youtubedl = createYoutubeDl();
+    youtubedl = null;
 }
 
 const app = express();
@@ -49,24 +50,43 @@ app.get('/app.html', (req, res) => {
 // Health check endpoint to verify yt-dlp is working
 app.get('/health', async (req, res) => {
     try {
-        // Test if yt-dlp is available
         const { exec } = require('child_process');
-        exec('yt-dlp --version', (error, stdout, stderr) => {
-            if (error) {
-                console.error('yt-dlp not available:', error);
-                res.status(500).json({ 
-                    status: 'error', 
-                    message: 'yt-dlp not installed or not in PATH',
-                    error: error.message 
-                });
-            } else {
-                res.json({ 
-                    status: 'ok', 
-                    ytdlp_version: stdout.trim(),
-                    message: 'Server and yt-dlp are working properly' 
-                });
-            }
+        const { promisify } = require('util');
+        const execAsync = promisify(exec);
+        
+        // Check multiple things
+        const checks = {
+            server: 'ok',
+            youtubedl_initialized: youtubedl ? 'ok' : 'error',
+            node_env: process.env.NODE_ENV || 'development',
+            path: process.env.PATH || 'not set'
+        };
+        
+        try {
+            const { stdout, stderr } = await execAsync('yt-dlp --version');
+            checks.ytdlp_version = stdout.trim();
+            checks.ytdlp_status = 'ok';
+        } catch (error) {
+            checks.ytdlp_status = 'error';
+            checks.ytdlp_error = error.message;
+        }
+        
+        // Try which yt-dlp
+        try {
+            const { stdout } = await execAsync('which yt-dlp');
+            checks.ytdlp_path = stdout.trim();
+        } catch (error) {
+            checks.ytdlp_path = 'not found';
+        }
+        
+        const isHealthy = checks.youtubedl_initialized === 'ok' && checks.ytdlp_status === 'ok';
+        
+        res.status(isHealthy ? 200 : 500).json({
+            status: isHealthy ? 'ok' : 'error',
+            checks: checks,
+            message: isHealthy ? 'All systems working' : 'Some systems have issues'
         });
+        
     } catch (error) {
         res.status(500).json({ 
             status: 'error', 
@@ -95,44 +115,58 @@ app.post('/api/playlist-info', async (req, res) => {
 
         console.log('Fetching playlist info for:', url);
         
+        // Validate URL format more strictly
+        const urlStr = String(url).trim();
+        if (!urlStr || typeof urlStr !== 'string') {
+            return res.status(400).json({ error: 'Invalid URL format' });
+        }
+        
         // Check if it's a playlist/set URL
-        const isPlaylist = url.includes('/sets/');
+        const isPlaylist = urlStr.includes('/sets/');
         
         let info;
         
-        if (isPlaylist) {
-            // Get playlist information with flat extraction
-            try {
-                info = await youtubedl(url, {
+        try {
+            if (isPlaylist) {
+                // Get playlist information with flat extraction
+                console.log('Processing playlist URL:', urlStr);
+                info = await youtubedl(urlStr, {
                     flatPlaylist: true,
                     dumpSingleJson: true,
-                    noWarnings: true
+                    noWarnings: true,
+                    noCheckCertificates: true
                 });
                 
                 // If we don't get entries, try a different approach
                 if (!info || !info.entries) {
                     console.log('Trying alternative playlist extraction method...');
-                    info = await youtubedl(url, {
+                    info = await youtubedl(urlStr, {
                         extractFlat: 'in_playlist',
                         dumpSingleJson: true,
                         noWarnings: true,
                         noCheckCertificates: true
                     });
                 }
-            } catch (playlistError) {
-                console.error('Playlist error:', playlistError);
-                return res.status(500).json({ 
-                    error: 'Failed to access SoundCloud playlist. Please check the URL and ensure the playlist is public.',
-                    details: playlistError.message || 'Unknown error occurred while fetching playlist'
+            } else {
+                // Single track - get its info and treat as a single-item playlist
+                console.log('Processing single track URL:', urlStr);
+                info = await youtubedl(urlStr, {
+                    dumpSingleJson: true,
+                    noWarnings: true,
+                    noCheckCertificates: true
                 });
             }
-        } else {
-            // Single track - get its info and treat as a single-item playlist
-            console.log('Processing single track URL:', url);
-            info = await youtubedl(url, {
-                dumpSingleJson: true,
-                noWarnings: true,
-                noCheckCertificates: true
+        } catch (ytdlError) {
+            console.error('yt-dlp error details:', {
+                message: ytdlError.message,
+                stack: ytdlError.stack,
+                url: urlStr
+            });
+            
+            return res.status(500).json({ 
+                error: 'Failed to access SoundCloud content',
+                details: 'The URL may be private, region-restricted, or the service may be temporarily unavailable.',
+                debug: process.env.NODE_ENV === 'development' ? ytdlError.message : undefined
             });
         }
 

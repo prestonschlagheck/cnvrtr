@@ -4,11 +4,15 @@ services:
     env: node
     buildCommand: |
       npm install
-      pip3 install --user yt-dlp
-      export PATH="$PATH:$HOME/.local/bin"
+      python3 -m pip install --user --upgrade pip
+      python3 -m pip install --user yt-dlp
+      echo "Verifying yt-dlp installation..."
+      export PATH="$HOME/.local/bin:$PATH"
+      which yt-dlp || echo "yt-dlp not found in PATH"
+      yt-dlp --version || echo "yt-dlp version check failed"
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PATH
-        value: $PATH:$HOME/.local/bin 
+        value: $HOME/.local/bin:$PATH 
