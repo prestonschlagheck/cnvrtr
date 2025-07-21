@@ -4,12 +4,22 @@ const path = require('path');
 const fs = require('fs-extra');
 const { create: createYoutubeDl } = require('youtube-dl-exec');
 const { spawn } = require('child_process');
+const os = require('os'); // Added for os.homedir()
 
 // Create a custom youtube-dl instance with the specific binary path
 const youtubedl = createYoutubeDl('/Users/prestonschlagheck/Library/Python/3.9/bin/yt-dlp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Helper function to sanitize filenames
+function sanitizeFilename(filename) {
+    return filename
+        .replace(/[<>:"/\\|?*]/g, '-')  // Replace invalid characters
+        .replace(/\s+/g, ' ')          // Replace multiple spaces with single space
+        .trim()                        // Remove leading/trailing whitespace
+        .substring(0, 255);            // Limit length to 255 characters
+}
 
 // Middleware
 app.use(cors());
@@ -93,7 +103,6 @@ app.post('/api/playlist-info', async (req, res) => {
                 title: entry.title || `Track ${index + 1}`,
                 uploader: entry.uploader || entry.uploader_id || info.uploader || 'Unknown',
                 duration: entry.duration || null,
-                bpm: entry.bpm || null, // BPM if available, otherwise null
                 url: entry.url || entry.webpage_url || entry.original_url,
                 thumbnail: entry.thumbnail || (entry.thumbnails && entry.thumbnails[0] ? entry.thumbnails[0].url : null)
             })).filter(track => track.url); // Only include tracks with valid URLs
@@ -153,7 +162,6 @@ app.post('/api/playlist-info', async (req, res) => {
                     title: info.title,
                     uploader: info.uploader,
                     duration: info.duration,
-                    bpm: info.bpm || null,
                     url: info.webpage_url || url,
                     thumbnail: info.thumbnail
                 }]
@@ -181,94 +189,260 @@ app.post('/api/playlist-info', async (req, res) => {
 
 // Download all tracks in a playlist to user's Downloads folder
 app.post('/api/download-all', async (req, res) => {
+    const { tracks, playlistTitle } = req.body;
+
+    if (!tracks || !Array.isArray(tracks)) {
+        return res.status(400).json({ error: 'Invalid tracks data' });
+    }
+
+    // Set headers for streaming response
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const downloadsDir = path.join(os.homedir(), 'Downloads');
+    const playlistDir = path.join(downloadsDir, sanitizeFilename(playlistTitle));
+
     try {
-        const { tracks, playlistTitle } = req.body;
+        await fs.ensureDir(playlistDir);
+        console.log(`Starting download of ${tracks.length} tracks to: ${playlistDir}`);
         
-        if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
-            return res.status(400).json({ error: 'No tracks provided' });
-        }
-        
-        // Clean the playlist title for use as folder name
-        const cleanTitle = playlistTitle.replace(/[<>:"/\\|?*]/g, '-').trim();
-        const userHome = require('os').homedir();
-        const downloadPath = path.join(userHome, 'Downloads', cleanTitle);
-        
-        // Create the directory if it doesn't exist
-        await fs.ensureDir(downloadPath);
-        
-        console.log(`Starting download of ${tracks.length} tracks to: ${downloadPath}`);
-        
-        // Set up Server-Sent Events for progress updates
-        res.writeHead(200, {
-            'Content-Type': 'text/plain',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Access-Control-Allow-Origin': '*'
-        });
-        
-        let completed = 0;
-        let failed = 0;
-        
-        // Download tracks sequentially to avoid overwhelming the server
+        // Track problematic downloads
+        const problemTracks = [];
+        let successCount = 0;
+
         for (let i = 0; i < tracks.length; i++) {
             const track = tracks[i];
+            const trackNum = i + 1;
+            
             try {
-                res.write(`Downloading ${i + 1}/${tracks.length}: ${track.title}\n`);
+                res.write(`Downloading ${trackNum}/${tracks.length}: ${track.title}\n`);
                 
-                // Clean the track title for filename
-                const cleanTrackTitle = track.title.replace(/[<>:"/\\|?*]/g, '-').trim();
-                const filename = `${cleanTrackTitle}.mp3`;
-                const filepath = path.join(downloadPath, filename);
+                const sanitizedTitle = sanitizeFilename(track.title);
+                const outputPath = path.join(playlistDir, `${sanitizedTitle}.%(ext)s`);
                 
-                // Download the track
-                const ytdlp = spawn('/Users/prestonschlagheck/Library/Python/3.9/bin/yt-dlp', [
-                    track.url,
-                    '-x',                      // Extract audio
-                    '--audio-format', 'mp3',   // Force MP3 format
-                    '--audio-quality', '0',    // Best quality
-                    '--embed-metadata',        // Embed track metadata
-                    '-o', filepath,            // Output directly as .mp3 file
-                    '--no-warnings'
-                ], {
-                    env: { ...process.env, PATH: process.env.PATH + ':/Users/prestonschlagheck/Library/Python/3.9/bin' }
+                // Download with yt-dlp - using restrictive format to prevent duplicates
+                await youtubedl(track.url, {
+                    output: outputPath,
+                    format: 'best[ext=mp3]/best[ext=m4a]/best',
+                    extractAudio: true,
+                    audioFormat: 'mp3',
+                    audioQuality: '0',
+                    noPlaylist: true, // Ensure we only get single track
+                    keepVideo: false, // Don't keep original video file
+                    writeInfoJson: false, // Don't write metadata files
+                    writeDescription: false, // Don't write description files
+                    writeThumbnail: false // Don't write thumbnail files
                 });
+
+                // Check if file was created and get its size/duration
+                const files = await fs.readdir(playlistDir);
+                const trackFiles = files.filter(file => file.startsWith(sanitizedTitle) && (file.endsWith('.mp3') || file.endsWith('.m4a')));
                 
-                await new Promise((resolve, reject) => {
-                    ytdlp.on('close', (code) => {
-                        if (code === 0) {
-                            completed++;
-                            res.write(`[SUCCESS] Downloaded: ${track.title}\n`);
-                            resolve();
-                        } else {
-                            failed++;
-                            res.write(`[FAILED] Failed: ${track.title}\n`);
-                            resolve(); // Continue with next track even if one fails
-                        }
-                    });
+                if (trackFiles.length > 0) {
+                    const trackFile = trackFiles[0];
+                    const filePath = path.join(playlistDir, trackFile);
+                    const stats = await fs.stat(filePath);
                     
-                    ytdlp.on('error', (error) => {
-                        failed++;
-                        res.write(`[ERROR] Error downloading ${track.title}: ${error.message}\n`);
-                        resolve();
+                    // Check if file is suspiciously small (likely a 30-second clip)
+                    // Files under 1MB are likely truncated/preview versions
+                    if (stats.size < 1024 * 1024) { // Less than 1MB
+                        problemTracks.push({
+                            title: track.title,
+                            issue: 'Restricted content (30-second preview only)',
+                            reason: 'Region restriction, authentication required, or private track'
+                        });
+                        res.write(`Download completed for: ${track.title} (preview only)\n`);
+                    } else {
+                        successCount++;
+                        res.write(`Download completed for: ${track.title}\n`);
+                    }
+                } else {
+                    problemTracks.push({
+                        title: track.title,
+                        issue: 'Download failed',
+                        reason: 'Track not accessible or removed'
                     });
+                    res.write(`Download failed for: ${track.title}\n`);
+                }
+
+            } catch (error) {
+                console.error(`Error downloading track ${track.title}:`, error.message);
+                
+                // Categorize the error
+                let issue = 'Download failed';
+                let reason = 'Unknown error';
+                
+                if (error.message.includes('Private')) {
+                    issue = 'Private track';
+                    reason = 'Track is private or requires authentication';
+                } else if (error.message.includes('region') || error.message.includes('geo')) {
+                    issue = 'Region restricted';
+                    reason = 'Content not available in your region';
+                } else if (error.message.includes('removed') || error.message.includes('unavailable')) {
+                    issue = 'Track unavailable';
+                    reason = 'Track has been removed or is no longer available';
+                } else {
+                    reason = 'Technical download error';
+                }
+                
+                problemTracks.push({
+                    title: track.title,
+                    issue: issue,
+                    reason: reason
                 });
                 
-                // Small delay between downloads
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-            } catch (error) {
-                failed++;
-                res.write(`[ERROR] Error downloading ${track.title}: ${error.message}\n`);
+                res.write(`Download failed for: ${track.title}\n`);
             }
         }
+
+        // Send completion message with summary
+        res.write(`\nDownload complete! ${successCount}/${tracks.length} tracks downloaded successfully.\n`);
         
-        res.write(`\n[COMPLETE] Download complete! ${completed} successful, ${failed} failed.\n`);
-        res.write(`[FOLDER] Files saved to: ${downloadPath}\n`);
+        if (problemTracks.length > 0) {
+            res.write(`\nISSUES_DETECTED:${JSON.stringify(problemTracks)}\n`);
+        }
+        
         res.end();
-        
+
     } catch (error) {
-        console.error('Error in download all:', error);
-        res.status(500).json({ error: 'Failed to download tracks', details: error.message });
+        console.error('Download all error:', error);
+        res.write(`Error: ${error.message}\n`);
+        res.end();
+    }
+});
+
+// Download all tracks with custom path and name
+app.post('/api/download-custom', async (req, res) => {
+    const { tracks, playlistTitle, customPath } = req.body;
+
+    if (!tracks || !Array.isArray(tracks)) {
+        return res.status(400).json({ error: 'Invalid tracks data' });
+    }
+
+    // Set headers for streaming response
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Determine the base directory
+    let baseDir;
+    if (customPath && customPath.trim()) {
+        // Use custom path if provided
+        baseDir = path.resolve(customPath.trim());
+    } else {
+        // Default to Downloads folder
+        baseDir = path.join(os.homedir(), 'Downloads');
+    }
+
+    const playlistDir = path.join(baseDir, sanitizeFilename(playlistTitle));
+
+    try {
+        await fs.ensureDir(playlistDir);
+        console.log(`Starting custom download of ${tracks.length} tracks to: ${playlistDir}`);
+        
+        // Track problematic downloads
+        const problemTracks = [];
+        let successCount = 0;
+
+        for (let i = 0; i < tracks.length; i++) {
+            const track = tracks[i];
+            const trackNum = i + 1;
+            
+            try {
+                res.write(`Downloading ${trackNum}/${tracks.length}: ${track.title}\n`);
+                
+                const sanitizedTitle = sanitizeFilename(track.title);
+                const outputPath = path.join(playlistDir, `${sanitizedTitle}.%(ext)s`);
+                
+                // Download with yt-dlp - using restrictive format to prevent duplicates
+                await youtubedl(track.url, {
+                    output: outputPath,
+                    format: 'best[ext=mp3]/best[ext=m4a]/best',
+                    extractAudio: true,
+                    audioFormat: 'mp3',
+                    audioQuality: '0',
+                    noPlaylist: true, // Ensure we only get single track
+                    keepVideo: false, // Don't keep original video file
+                    writeInfoJson: false, // Don't write metadata files
+                    writeDescription: false, // Don't write description files
+                    writeThumbnail: false // Don't write thumbnail files
+                });
+
+                // Check if file was created and get its size/duration
+                const files = await fs.readdir(playlistDir);
+                const trackFiles = files.filter(file => file.startsWith(sanitizedTitle) && (file.endsWith('.mp3') || file.endsWith('.m4a')));
+                
+                if (trackFiles.length > 0) {
+                    const trackFile = trackFiles[0];
+                    const filePath = path.join(playlistDir, trackFile);
+                    const stats = await fs.stat(filePath);
+                    
+                    // Check if file is suspiciously small (likely a 30-second clip)
+                    // Files under 1MB are likely truncated/preview versions
+                    if (stats.size < 1024 * 1024) { // Less than 1MB
+                        problemTracks.push({
+                            title: track.title,
+                            issue: 'Restricted content (30-second preview only)',
+                            reason: 'Region restriction, authentication required, or private track'
+                        });
+                        res.write(`Download completed for: ${track.title} (preview only)\n`);
+                    } else {
+                        successCount++;
+                        res.write(`Download completed for: ${track.title}\n`);
+                    }
+                } else {
+                    problemTracks.push({
+                        title: track.title,
+                        issue: 'Download failed',
+                        reason: 'Track not accessible or removed'
+                    });
+                    res.write(`Download failed for: ${track.title}\n`);
+                }
+
+            } catch (error) {
+                console.error(`Error downloading track ${track.title}:`, error.message);
+                
+                // Categorize the error
+                let issue = 'Download failed';
+                let reason = 'Unknown error';
+                
+                if (error.message.includes('Private')) {
+                    issue = 'Private track';
+                    reason = 'Track is private or requires authentication';
+                } else if (error.message.includes('region') || error.message.includes('geo')) {
+                    issue = 'Region restricted';
+                    reason = 'Content not available in your region';
+                } else if (error.message.includes('removed') || error.message.includes('unavailable')) {
+                    issue = 'Track unavailable';
+                    reason = 'Track has been removed or is no longer available';
+                } else {
+                    reason = 'Technical download error';
+                }
+                
+                problemTracks.push({
+                    title: track.title,
+                    issue: issue,
+                    reason: reason
+                });
+                
+                res.write(`Download failed for: ${track.title}\n`);
+            }
+        }
+
+        // Send completion message with summary
+        res.write(`\nDownload complete! ${successCount}/${tracks.length} tracks downloaded successfully.\n`);
+        
+        if (problemTracks.length > 0) {
+            res.write(`\nISSUES_DETECTED:${JSON.stringify(problemTracks)}\n`);
+        }
+        
+        res.end();
+
+    } catch (error) {
+        console.error('Custom download error:', error);
+        res.write(`Error: ${error.message}\n`);
+        res.end();
     }
 });
 

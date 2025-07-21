@@ -57,23 +57,6 @@ body {
     animation: none; /* Disable for performance */
 }
 
-/* Diagonal Lines Animation - Disabled for performance */
-.angled-lines {
-    animation: none;
-}
-
-.diagonal-1, .diagonal-2, .diagonal-3, .diagonal-4 {
-    animation: none;
-}
-
-.diagonal-5, .diagonal-6, .diagonal-7, .diagonal-8, .diagonal-9 {
-    animation: none;
-}
-
-.diagonal-10, .diagonal-11, .diagonal-12, .diagonal-13 {
-    animation: none;
-}
-
 @keyframes flow1 {
     0%, 100% { 
         d: path("M-100,200 Q200,50 500,180 T900,120 T1300,200");
@@ -399,6 +382,10 @@ body {
     text-align: center;
     background: rgba(255, 107, 53, 0.1);
     border-bottom: 1px solid rgba(255, 107, 53, 0.2);
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
 }
 
 .download-all-btn {
@@ -576,14 +563,13 @@ body {
 /* Footer */
 .footer {
     margin-top: auto;
-    padding: 2rem 0 1rem;
+    padding: 1rem 0;
     text-align: center;
-    border-top: 1px solid rgba(255, 107, 53, 0.2);
 }
 
 .footer p {
     color: #888;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .liability-waiver {
@@ -591,12 +577,12 @@ body {
     padding: 0;
     background: none;
     border: none;
-    font-size: 0.8rem;
-    line-height: 1.4;
+    font-size: 0.7rem;
+    line-height: 1.3;
 }
 
 .liability-waiver p {
-    color: #888;
+    color: #666;
     margin: 0;
     font-weight: normal;
 }
@@ -620,6 +606,57 @@ body {
 
 .btn-text svg {
     flex-shrink: 0;
+}
+
+/* Loading Icon Animation */
+.loading-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Error State Button with Hover Popup */
+.download-btn.error-state {
+    position: relative;
+}
+
+.download-btn.error-state:hover::after {
+    content: "The following track could not be downloaded at full quality due to content restrictions, authentication, or privacy of the track.";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    max-width: 250px;
+    white-space: normal;
+    width: 200px;
+    text-align: center;
+    z-index: 1000;
+    margin-bottom: 5px;
+    line-height: 1.3;
+}
+
+.download-btn.error-state:hover::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
 }
 
 /* Utility Classes */
@@ -734,3 +771,5 @@ body {
         min-width: auto;
     }
 } 
+
+ 

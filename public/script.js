@@ -20,6 +20,15 @@ class SoundclouderApp {
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>`,
+            info: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4"/>
+                <path d="M12 8h.01"/>
+            </svg>`,
+            loading: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="loading-icon">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+            </svg>`,
             folder: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>`
@@ -43,6 +52,11 @@ class SoundclouderApp {
         // Download All button
         document.getElementById('downloadAllBtn').addEventListener('click', () => {
             this.downloadAll();
+        });
+
+        // Custom Path button
+        document.getElementById('customPathBtn').addEventListener('click', () => {
+            this.downloadWithCustomPath();
         });
     }
 
@@ -110,18 +124,29 @@ class SoundclouderApp {
                 body: JSON.stringify({ url })
             });
 
-            const data = await response.json();
-
+            // Check if response is ok
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to fetch playlist');
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response');
+            }
+
+            const data = await response.json();
 
             this.currentPlaylist = data;
             this.displayPlaylist(data);
 
         } catch (error) {
             console.error('Error fetching playlist:', error);
-            this.showError(error.message || 'Failed to fetch playlist information');
+            if (error.name === 'SyntaxError') {
+                this.showError('Server returned invalid response. Please try again.');
+            } else {
+                this.showError(error.message || 'Failed to fetch playlist information');
+            }
         } finally {
             this.showLoading('fetchBtn', false);
         }
@@ -198,12 +223,11 @@ class SoundclouderApp {
         trackTitle.target = '_blank';
         trackTitle.textContent = track.title;
 
-        // Track duration and BPM
+        // Track duration only (BPM not available from SoundCloud)
         const trackDuration = document.createElement('div');
         trackDuration.className = 'track-duration';
         const durationText = this.formatDuration(track.duration);
-        const bpmText = track.bpm ? `${track.bpm} BPM` : 'N/A BPM';
-        trackDuration.textContent = `${durationText} • ${bpmText}`;
+        trackDuration.textContent = durationText;
 
         // Add title and duration to info container
         trackInfo.appendChild(trackTitle);
@@ -235,9 +259,8 @@ class SoundclouderApp {
         const spinner = button.querySelector('.spinner');
         const icon = button.querySelector('.btn-icon');
         
-        // Show loading state
-        spinner.classList.remove('hidden');
-        icon.style.opacity = '0.7';
+        // Show loading state - hide download icon, show loading icon
+        icon.innerHTML = this.createIcon('loading');
         button.disabled = true;
 
         try {
@@ -267,31 +290,24 @@ class SoundclouderApp {
             // Clean up
             document.body.removeChild(form);
 
-            // Update button state
+            // Update button state to green with checkmark
             icon.innerHTML = this.createIcon('success');
             button.style.background = '#10b981';
-            
-            // Reset button after a few seconds
-            setTimeout(() => {
-                icon.innerHTML = this.createIcon('download');
-                button.style.background = '';
-                button.disabled = false;
-                spinner.classList.add('hidden');
-                icon.style.opacity = '1';
-            }, 3000);
+            button.style.color = 'white';
+            button.disabled = false;
 
         } catch (error) {
             console.error('Download error:', error);
             icon.innerHTML = this.createIcon('error');
             button.style.background = '#ef4444';
+            button.style.color = 'white';
             
             // Reset button after 3 seconds
             setTimeout(() => {
                 icon.innerHTML = this.createIcon('download');
                 button.style.background = '';
+                button.style.color = '';
                 button.disabled = false;
-                spinner.classList.add('hidden');
-                icon.style.opacity = '1';
             }, 3000);
         }
     }
@@ -307,11 +323,9 @@ class SoundclouderApp {
         const text = button.querySelector('.btn-text');
         
         try {
-            // Show loading state
-            spinner.classList.remove('hidden');
-            text.style.opacity = '0.7';
+            // Show loading state - replace folder icon with loading icon
             button.disabled = true;
-            text.innerHTML = `${this.createIcon('folder')} Starting Download...`;
+            text.innerHTML = `${this.createIcon('loading')} Starting Download...`;
 
             const response = await fetch('/api/download-all', {
                 method: 'POST',
@@ -334,6 +348,7 @@ class SoundclouderApp {
 
             let receivedLength = 0;
             let chunks = [];
+            let problemTracks = [];
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -351,41 +366,262 @@ class SoundclouderApp {
                 if (lines.length > 0) {
                     const lastLine = lines[lines.length - 1];
                     if (lastLine.includes('Downloading')) {
-                        text.innerHTML = `${this.createIcon('folder')} ${lastLine.split(': ')[1] || 'Downloading...'}`;
+                        const trackInfo = lastLine.split(': ')[1] || 'Downloading...';
+                        text.innerHTML = `${this.createIcon('loading')} ${trackInfo}`;
+                        
+                        // Extract track number and update individual button
+                        const trackMatch = lastLine.match(/Downloading (\d+)\/(\d+): (.+)/);
+                        if (trackMatch) {
+                            const trackIndex = parseInt(trackMatch[1]) - 1; // Convert to 0-based index
+                            this.updateTrackButtonToLoading(trackIndex);
+                        }
                     } else if (lastLine.includes('complete')) {
-                        text.innerHTML = `${this.createIcon('success')} Download Complete!`;
+                        text.innerHTML = `${this.createIcon('success')} Downloaded`;
+                    } else if (lastLine.startsWith('ISSUES_DETECTED:')) {
+                        // Parse the issues data
+                        const issuesData = lastLine.replace('ISSUES_DETECTED:', '');
+                        try {
+                            problemTracks = JSON.parse(issuesData);
+                        } catch (e) {
+                            console.error('Failed to parse issues data:', e);
+                        }
                     }
                 }
+                
+                // Check for individual track completion
+                chunk.split('\n').forEach(line => {
+                    if (line.includes('Download completed for:')) {
+                        const trackTitle = line.split('Download completed for: ')[1];
+                        if (trackTitle) {
+                            // Check if it's a preview or full download
+                            const isPreview = trackTitle.includes('(preview only)');
+                            const cleanTitle = trackTitle.replace(' (preview only)', '').trim();
+                            this.updateTrackButtonToComplete(cleanTitle, isPreview);
+                        }
+                    } else if (line.includes('Download failed for:')) {
+                        const trackTitle = line.split('Download failed for: ')[1];
+                        if (trackTitle) {
+                            this.updateTrackButtonToFailed(trackTitle.trim(), 'The following track could not be downloaded at full quality due to content restrictions, authentication, or privacy of the track.');
+                        }
+                    }
+                });
             }
 
-            // Success state
+            // Success state - green with checkmark
             button.style.background = '#10b981';
-            text.innerHTML = `${this.createIcon('success')} All Downloads Complete!`;
-            
-            // Reset button after 5 seconds
-            setTimeout(() => {
-                text.innerHTML = `${this.createIcon('folder')} Download All to Folder`;
-                button.style.background = '';
-                button.disabled = false;
-                spinner.classList.add('hidden');
-                text.style.opacity = '1';
-            }, 5000);
+            button.style.color = 'white';
+            text.innerHTML = `${this.createIcon('success')} Downloaded`;
+            button.disabled = false;
+
+            // Issues are now handled per-track with hover popups
 
         } catch (error) {
             console.error('Download all error:', error);
             text.innerHTML = `${this.createIcon('error')} Download Failed`;
             button.style.background = '#ef4444';
+            button.style.color = 'white';
             
             // Reset button after 3 seconds
             setTimeout(() => {
                 text.innerHTML = `${this.createIcon('folder')} Download All to Folder`;
                 button.style.background = '';
+                button.style.color = '';
                 button.disabled = false;
-                spinner.classList.add('hidden');
-                text.style.opacity = '1';
             }, 3000);
         }
     }
+
+    async downloadWithCustomPath() {
+        if (!this.currentPlaylist || !this.currentPlaylist.tracks) {
+            this.showError('No playlist loaded');
+            return;
+        }
+
+        // Prompt user for custom path and name
+        const customPath = prompt('Enter custom folder path (leave empty for Downloads folder):', '');
+        if (customPath === null) return; // User cancelled
+
+        const customName = prompt('Enter custom folder name:', this.currentPlaylist.title);
+        if (customName === null) return; // User cancelled
+
+        const finalFolderName = customName.trim() || this.currentPlaylist.title;
+
+        const button = document.getElementById('customPathBtn');
+        const text = button.querySelector('.btn-text');
+        
+        try {
+            // Show loading state
+            button.disabled = true;
+            text.innerHTML = `${this.createIcon('loading')} Starting Custom Download...`;
+
+            const response = await fetch('/api/download-custom', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    tracks: this.currentPlaylist.tracks,
+                    playlistTitle: finalFolderName,
+                    customPath: customPath.trim()
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // Read the stream for progress updates
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            let receivedLength = 0;
+            let chunks = [];
+            let problemTracks = [];
+
+            while (true) {
+                const { done, value } = await reader.read();
+
+                if (done) break;
+
+                chunks.push(value);
+                receivedLength += value.length;
+
+                // Decode the latest chunk
+                const chunk = decoder.decode(value, { stream: true });
+                
+                // Update button text with latest progress
+                const lines = chunk.split('\n').filter(line => line.trim());
+                if (lines.length > 0) {
+                    const lastLine = lines[lines.length - 1];
+                    if (lastLine.includes('Downloading')) {
+                        const trackInfo = lastLine.split(': ')[1] || 'Downloading...';
+                        text.innerHTML = `${this.createIcon('loading')} ${trackInfo}`;
+                        
+                        // Extract track number and update individual button
+                        const trackMatch = lastLine.match(/Downloading (\d+)\/(\d+): (.+)/);
+                        if (trackMatch) {
+                            const trackIndex = parseInt(trackMatch[1]) - 1; // Convert to 0-based index
+                            this.updateTrackButtonToLoading(trackIndex);
+                        }
+                    } else if (lastLine.includes('complete')) {
+                        text.innerHTML = `${this.createIcon('success')} Downloaded`;
+                    } else if (lastLine.startsWith('ISSUES_DETECTED:')) {
+                        // Parse the issues data
+                        const issuesData = lastLine.replace('ISSUES_DETECTED:', '');
+                        try {
+                            problemTracks = JSON.parse(issuesData);
+                        } catch (e) {
+                            console.error('Failed to parse issues data:', e);
+                        }
+                    }
+                }
+                
+                // Check for individual track completion
+                chunk.split('\n').forEach(line => {
+                    if (line.includes('Download completed for:')) {
+                        const trackTitle = line.split('Download completed for: ')[1];
+                        if (trackTitle) {
+                            // Check if it's a preview or full download
+                            const isPreview = trackTitle.includes('(preview only)');
+                            const cleanTitle = trackTitle.replace(' (preview only)', '').trim();
+                            this.updateTrackButtonToComplete(cleanTitle, isPreview);
+                        }
+                    } else if (line.includes('Download failed for:')) {
+                        const trackTitle = line.split('Download failed for: ')[1];
+                        if (trackTitle) {
+                            this.updateTrackButtonToFailed(trackTitle.trim(), 'The following track could not be downloaded at full quality due to content restrictions, authentication, or privacy of the track.');
+                        }
+                    }
+                });
+            }
+
+            // Success state - green with checkmark
+            button.style.background = '#10b981';
+            button.style.color = 'white';
+            text.innerHTML = `${this.createIcon('success')} Downloaded`;
+            button.disabled = false;
+
+            // Issues are now handled per-track with hover popups
+
+        } catch (error) {
+            console.error('Custom download error:', error);
+            text.innerHTML = `${this.createIcon('error')} Download Failed`;
+            button.style.background = '#ef4444';
+            button.style.color = 'white';
+            
+            // Reset button after 3 seconds
+            setTimeout(() => {
+                text.innerHTML = `${this.createIcon('folder')} Custom Path & Name`;
+                button.style.background = '';
+                button.style.color = '';
+                button.disabled = false;
+            }, 3000);
+        }
+    }
+
+    updateTrackButtonToLoading(trackIndex) {
+        const trackItem = document.querySelector(`[data-track-index="${trackIndex}"]`);
+        if (trackItem) {
+            const downloadBtn = trackItem.querySelector('.download-btn');
+            const icon = downloadBtn.querySelector('.btn-icon');
+            
+            // Show loading state - replace download icon with loading icon
+            icon.innerHTML = this.createIcon('loading');
+            downloadBtn.disabled = true;
+        }
+    }
+
+    updateTrackButtonToComplete(trackTitle, isPreview) {
+        // Find the track item by matching the title
+        const trackItems = document.querySelectorAll('.track-item');
+        trackItems.forEach(trackItem => {
+            const titleElement = trackItem.querySelector('.track-title');
+            if (titleElement && titleElement.textContent.trim() === trackTitle) {
+                const downloadBtn = trackItem.querySelector('.download-btn');
+                const icon = downloadBtn.querySelector('.btn-icon');
+                
+                // Update to success state
+                icon.innerHTML = this.createIcon('success');
+                
+                if (isPreview) {
+                    // Preview downloads get orange color
+                    downloadBtn.style.background = '#f97316';
+                    downloadBtn.title = 'Preview only (30 seconds)';
+                } else {
+                    // Full downloads get green color
+                    downloadBtn.style.background = '#10b981';
+                    downloadBtn.title = 'Downloaded successfully';
+                }
+                
+                downloadBtn.style.color = 'white';
+                downloadBtn.disabled = false;
+            }
+        });
+    }
+
+    updateTrackButtonToFailed(trackTitle, errorMessage = 'Download failed') {
+        // Find the track item by matching the title
+        const trackItems = document.querySelectorAll('.track-item');
+        trackItems.forEach(trackItem => {
+            const titleElement = trackItem.querySelector('.track-title');
+            if (titleElement && titleElement.textContent.trim() === trackTitle) {
+                const downloadBtn = trackItem.querySelector('.download-btn');
+                const icon = downloadBtn.querySelector('.btn-icon');
+                
+                // Update to failed state with info icon and hover popup
+                icon.innerHTML = this.createIcon('info');
+                downloadBtn.style.background = '#ef4444';
+                downloadBtn.style.color = 'white';
+                downloadBtn.title = errorMessage;
+                downloadBtn.disabled = false;
+                
+                // Add error class for additional styling
+                downloadBtn.classList.add('error-state');
+            }
+        });
+    }
+
+
 
     handleURLParameters() {
         // Check for URL parameter from landing page
@@ -408,6 +644,12 @@ class SoundclouderApp {
         // Hide playlist info
         document.getElementById('playlistInfo').classList.add('hidden');
         
+        // Remove any download issues display
+        const existingIssues = document.getElementById('downloadIssues');
+        if (existingIssues) {
+            existingIssues.remove();
+        }
+        
         // Show input section and header again (navigation doesn't exist)
         document.querySelector('.input-section').classList.remove('hidden');
         const navigation = document.querySelector('.navigation');
@@ -424,10 +666,44 @@ class SoundclouderApp {
         this.currentPlaylist = null;
     }
 
+    showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+    }
 
+    hideError() {
+        document.getElementById('errorMessage').classList.add('hidden');
+    }
+
+    showLoading(buttonId, show = true) {
+        const button = document.getElementById(buttonId);
+        const spinner = button.querySelector('.spinner');
+        const text = button.querySelector('.btn-text');
+
+        if (show) {
+            spinner.classList.remove('hidden');
+            text.style.opacity = '0.7';
+            button.disabled = true;
+        } else {
+            spinner.classList.add('hidden');
+            text.style.opacity = '1';
+            button.disabled = false;
+        }
+    }
+
+    createIcon(type) {
+        const icons = {
+            download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+            success: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>',
+            error: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+            folder: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+        };
+        return icons[type] || '';
+    }
 }
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new SoundclouderApp();
-}); 
+});

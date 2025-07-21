@@ -25,23 +25,6 @@
             <path d="M0,300 Q300,100 600,250 T1200,200 L1200,0 L0,0 Z" fill="url(#orangeGradient)" opacity="0.3"/>
             <path d="M0,500 Q400,300 800,450 T1200,400 L1200,800 L0,800 Z" fill="url(#orangeGradient)" opacity="0.2"/>
             
-            <!-- Diagonal angled lines -->
-            <g class="angled-lines" stroke="url(#orangeGradient)" stroke-width="1.5" fill="none" opacity="0.4">
-                <line x1="-100" y1="100" x2="400" y2="300" class="diagonal-1"/>
-                <line x1="200" y1="50" x2="700" y2="250" class="diagonal-2"/>
-                <line x1="500" y1="0" x2="1000" y2="200" class="diagonal-3"/>
-                <line x1="800" y1="-50" x2="1300" y2="150" class="diagonal-4"/>
-                <line x1="-100" y1="400" x2="300" y2="600" class="diagonal-5"/>
-                <line x1="100" y1="350" x2="500" y2="550" class="diagonal-6"/>
-                <line x1="400" y1="300" x2="800" y2="500" class="diagonal-7"/>
-                <line x1="700" y1="250" x2="1100" y2="450" class="diagonal-8"/>
-                <line x1="1000" y1="200" x2="1400" y2="400" class="diagonal-9"/>
-                <line x1="-50" y1="700" x2="350" y2="900" class="diagonal-10"/>
-                <line x1="250" y1="650" x2="650" y2="850" class="diagonal-11"/>
-                <line x1="550" y1="600" x2="950" y2="800" class="diagonal-12"/>
-                <line x1="850" y1="550" x2="1250" y2="750" class="diagonal-13"/>
-            </g>
-            
             <!-- Dynamic flowing patterns -->
             <g class="flowing-lines" stroke="url(#orangeGradient)" stroke-width="2" fill="none" opacity="0.6">
                 <path d="M-100,200 Q200,50 500,180 T900,120 T1300,200" class="line-1"/>
@@ -57,8 +40,10 @@
     <div class="container">
         <header class="header">
             <div class="logo">
-                <h1>CNVRTR.</h1>
-                <p>Professional DJ Music Conversion Tool</p>
+                <a href="index.html" style="text-decoration: none; color: inherit;">
+                    <h1>CNVRTR.</h1>
+                    <p>Professional DJ Music Conversion Tool</p>
+                </a>
             </div>
         </header>
 
@@ -96,6 +81,15 @@
                                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                             </svg>
                             Download All to Folder
+                        </span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                    <button id="customPathBtn" class="download-all-btn">
+                        <span class="btn-text">
+                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                            Custom Path & Name
                         </span>
                         <div class="spinner hidden"></div>
                     </button>
