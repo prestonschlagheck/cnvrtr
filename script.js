@@ -703,13 +703,6 @@ class SoundclouderApp {
     }
 }
 
-// Toggle serverless notice details
-function toggleNoticeDetails() {
-    const details = document.getElementById('noticeDetails');
-    details.classList.toggle('hidden');
-    event.preventDefault();
-}
-
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new SoundclouderApp();

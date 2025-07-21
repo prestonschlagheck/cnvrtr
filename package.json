@@ -1,15 +1,25 @@
 {
   "name": "soundclouder",
   "version": "1.0.0",
-  "description": "A SoundCloud playlist viewer and converter tool",
+  "description": "A professional SoundCloud playlist downloader and converter tool",
+  "main": "server.js",
   "scripts": {
-    "dev": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "youtube-dl-exec": "^2.4.11",
+    "fs-extra": "^11.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
   "engines": {
     "node": "18.x"
   },
-  "keywords": ["soundcloud", "playlist", "music", "converter"],
+  "keywords": ["soundcloud", "downloader", "playlist", "music", "converter"],
   "author": "",
   "license": "MIT"
 } 

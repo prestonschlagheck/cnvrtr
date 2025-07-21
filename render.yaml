@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: soundclouder
+    env: node
+    buildCommand: |
+      npm install
+      pip install yt-dlp
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production 

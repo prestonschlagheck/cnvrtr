@@ -37,36 +37,40 @@ npm start
 ### Local Development
 The app works fully when running locally with all download features supported.
 
-### Vercel Deployment
+### Render Deployment
 
-🎯 **Live Demo**: The app is deployed on Vercel as a UI demonstration.
+🚀 **Production Ready**: Fully functional deployment on Render with complete audio download capabilities.
 
-#### ✅ **What Works on Vercel:**
-- Complete UI/UX demonstration
-- Playlist URL processing (demo mode)
-- All frontend functionality and animations
-- Error handling and progress tracking interfaces
-
-#### ⚠️ **Serverless Limitations:**
-- **No Audio Downloads**: Requires system binaries (yt-dlp) not available in serverless
-- **Demo Data Only**: Shows simulated playlist information
-- **No File System Access**: Cannot save files to user's computer
-- **No Custom Paths**: Serverless functions don't have persistent storage
+#### ✅ **Full Functionality on Render:**
+- ✅ **Real SoundCloud playlist fetching**
+- ✅ **Complete audio file downloading**
+- ✅ **Custom file paths and naming**
+- ✅ **Individual track downloads**
+- ✅ **All UI improvements and animations**
+- ✅ **Error handling with hover tooltips**
+- ✅ **Duplicate prevention system**
 
 #### **Deployment Configuration:**
-- `vercel.json` - Minimal Vercel configuration following best practices
-- `/api` folder - Serverless functions for demo endpoints  
-- Static files in root - Proper Vercel static file serving
-- Zero dependencies - Removed problematic packages
+- `render.yaml` - Automatic yt-dlp installation during build
+- `server.js` - Full Express server with all functionality
+- `package.json` - Complete dependency list
+- **No limitations** - Full server environment
 
-#### **For Production Use:**
-**Recommended hosting platforms for full functionality:**
-- **Railway** - Full Node.js environment with persistent storage
-- **Render** - Container-based hosting with file system access
-- **Traditional VPS** - Complete control (DigitalOcean, Linode, etc.)
-- **Docker** - Custom environment with required binaries
+#### **Deploy to Render:**
+1. **Fork/Clone this repository**
+2. **Sign up at [render.com](https://render.com)**
+3. **Connect GitHub repository**
+4. **Render auto-detects Node.js and installs dependencies**
+5. **yt-dlp installed automatically via render.yaml**
+6. **Full functionality available immediately**
 
-**Local Development** (Full functionality):
+#### **Custom Domain Setup:**
+- Add custom domain in Render dashboard
+- Point your DNS to Render's servers
+- SSL certificate automatically provisioned
+- **Estimated cost**: $0-7/month (750 free hours)
+
+**Local Development**:
 ```bash
 git clone https://github.com/prestonschlagheck/cnvrtr.git
 cd soundclouder
@@ -77,17 +81,13 @@ npm start
 
 ## Dependencies
 
-### Vercel Deployment (Current)
-- **Zero NPM dependencies** - Optimized for serverless deployment
-- Pure serverless functions with demo data
-- Static file serving only
-
-### Local Development (Full Functionality)
-- `express` - Web framework
-- `youtube-dl-exec` - SoundCloud content extraction  
-- `fs-extra` - File system operations
-- `cors` - Cross-origin requests
-- `yt-dlp` - System binary for audio processing (via pip)
+### Production & Development
+- `express` - Web framework and API server
+- `youtube-dl-exec` - SoundCloud content extraction wrapper
+- `fs-extra` - Enhanced file system operations
+- `cors` - Cross-origin request handling
+- `yt-dlp` - System binary for audio processing (auto-installed via render.yaml)
+- `nodemon` - Development server with auto-restart
 
 ## Legal Notice
 
@@ -101,17 +101,10 @@ npm start
 ├── app.html         # Main application  
 ├── script.js        # Frontend logic
 ├── styles.css       # Styling
-├── api/             # Vercel serverless functions
-│   ├── playlist-info.js
-│   ├── download-all.js
-│   ├── download-custom.js
-│   ├── download-track.js
-│   └── track-preview.js
-├── index.html       # Landing page
-├── app.html         # Main application
-├── script.js        # Frontend logic
-├── styles.css       # Styling
-└── vercel.json      # Vercel deployment config
+├── server.js        # Express server with full functionality
+├── package.json     # Dependencies and scripts
+├── render.yaml      # Render deployment configuration
+└── README.md        # Documentation
 ```
 
 ### Local Development
