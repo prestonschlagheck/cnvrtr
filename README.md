@@ -54,9 +54,9 @@ The app works fully when running locally with all download features supported.
 - **No Custom Paths**: Serverless functions don't have persistent storage
 
 #### **Deployment Configuration:**
-- `vercel.json` - Modern Vercel configuration
-- `/api` folder - Serverless functions for demo endpoints
-- `/public` folder - Static assets
+- `vercel.json` - Minimal Vercel configuration following best practices
+- `/api` folder - Serverless functions for demo endpoints  
+- Static files in root - Proper Vercel static file serving
 - Zero dependencies - Removed problematic packages
 
 #### **For Production Use:**
@@ -97,18 +97,20 @@ npm start
 
 ### Project Structure
 ```
-├── public/           # Frontend files
-│   ├── index.html   # Landing page
-│   ├── app.html     # Main application
-│   ├── script.js    # Frontend logic
-│   └── styles.css   # Styling
+├── index.html       # Landing page
+├── app.html         # Main application  
+├── script.js        # Frontend logic
+├── styles.css       # Styling
 ├── api/             # Vercel serverless functions
 │   ├── playlist-info.js
 │   ├── download-all.js
 │   ├── download-custom.js
 │   ├── download-track.js
 │   └── track-preview.js
-├── server.js        # Local development server
+├── index.html       # Landing page
+├── app.html         # Main application
+├── script.js        # Frontend logic
+├── styles.css       # Styling
 └── vercel.json      # Vercel deployment config
 ```
 

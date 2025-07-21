@@ -1,26 +1,7 @@
 {
   "functions": {
     "api/**/*.js": {
-      "runtime": "nodejs18.x",
       "maxDuration": 30
     }
-  },
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/public/index.html"
-    },
-    {
-      "source": "/app.html",
-      "destination": "/public/app.html"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/public/$1"
-    }
-  ]
+  }
 } 
