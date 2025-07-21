@@ -4,15 +4,16 @@ services:
     env: node
     buildCommand: |
       npm install
-      python3 -m pip install --user --upgrade pip
-      python3 -m pip install --user yt-dlp
-      echo "Verifying yt-dlp installation..."
-      export PATH="$HOME/.local/bin:$PATH"
-      which yt-dlp || echo "yt-dlp not found in PATH"
-      yt-dlp --version || echo "yt-dlp version check failed"
+      echo "Installing yt-dlp globally..."
+      curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /opt/render/project/src/yt-dlp
+      chmod +x /opt/render/project/src/yt-dlp
+      echo "Creating symlink..."
+      ln -sf /opt/render/project/src/yt-dlp /opt/render/project/src/node_modules/.bin/yt-dlp
+      echo "Verifying installation..."
+      /opt/render/project/src/yt-dlp --version
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PATH
-        value: $HOME/.local/bin:$PATH 
+        value: /opt/render/project/src/node_modules/.bin:$PATH 
