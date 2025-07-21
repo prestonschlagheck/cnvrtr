@@ -2,23 +2,56 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs-extra');
-const { create: createYoutubeDl } = require('youtube-dl-exec');
 const { spawn } = require('child_process');
+const { promisify } = require('util');
 const os = require('os');
 
-// Create a more robust youtube-dl instance
-const ytDlpBinary = process.env.NODE_ENV === 'production' ? 'yt-dlp' : 'yt-dlp';
-let youtubedl;
-
-try {
-    youtubedl = createYoutubeDl({
-        ytDlpPath: ytDlpBinary
+// Direct yt-dlp function using spawn instead of youtube-dl-exec wrapper
+async function runYtDlp(url, options = {}) {
+    return new Promise((resolve, reject) => {
+        const args = [url];
+        
+        // Add common options
+        if (options.flatPlaylist) args.push('--flat-playlist');
+        if (options.dumpSingleJson) args.push('--dump-single-json');
+        if (options.noWarnings) args.push('--no-warnings');
+        if (options.noCheckCertificates) args.push('--no-check-certificates');
+        if (options.extractFlat) args.push('--extract-flat', options.extractFlat);
+        
+        console.log('Running yt-dlp with args:', ['yt-dlp', ...args]);
+        
+        const ytdlp = spawn('yt-dlp', args);
+        let stdout = '';
+        let stderr = '';
+        
+        ytdlp.stdout.on('data', (data) => {
+            stdout += data.toString();
+        });
+        
+        ytdlp.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+        
+        ytdlp.on('close', (code) => {
+            if (code === 0) {
+                try {
+                    const result = JSON.parse(stdout);
+                    resolve(result);
+                } catch (parseError) {
+                    reject(new Error(`Failed to parse JSON: ${parseError.message}\nOutput: ${stdout}`));
+                }
+            } else {
+                reject(new Error(`yt-dlp failed with code ${code}: ${stderr}`));
+            }
+        });
+        
+        ytdlp.on('error', (error) => {
+            reject(new Error(`Failed to spawn yt-dlp: ${error.message}`));
+        });
     });
-    console.log('yt-dlp initialized successfully');
-} catch (error) {
-    console.error('Failed to initialize yt-dlp:', error);
-    youtubedl = null;
 }
+
+console.log('Using direct yt-dlp spawn approach');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,7 +90,7 @@ app.get('/health', async (req, res) => {
         // Check multiple things
         const checks = {
             server: 'ok',
-            youtubedl_initialized: youtubedl ? 'ok' : 'error',
+            approach: 'direct spawn (no wrapper)',
             node_env: process.env.NODE_ENV || 'development',
             path: process.env.PATH || 'not set'
         };
@@ -79,7 +112,7 @@ app.get('/health', async (req, res) => {
             checks.ytdlp_path = 'not found';
         }
         
-        const isHealthy = checks.youtubedl_initialized === 'ok' && checks.ytdlp_status === 'ok';
+        const isHealthy = checks.ytdlp_status === 'ok';
         
         res.status(isHealthy ? 200 : 500).json({
             status: isHealthy ? 'ok' : 'error',
@@ -105,11 +138,16 @@ app.post('/api/playlist-info', async (req, res) => {
             return res.status(400).json({ error: 'Invalid SoundCloud URL' });
         }
 
-        // Check if yt-dlp is available before proceeding
-        if (!youtubedl) {
+        // Test yt-dlp availability before proceeding
+        try {
+            const { exec } = require('child_process');
+            const execAsync = promisify(exec);
+            await execAsync('yt-dlp --version');
+        } catch (error) {
             return res.status(500).json({ 
                 error: 'Service temporarily unavailable',
-                details: 'Audio processing service is not properly configured. Please try again later.'
+                details: 'yt-dlp is not available. Please try again later.',
+                debug: process.env.NODE_ENV === 'development' ? error.message : undefined
             });
         }
 
@@ -130,7 +168,7 @@ app.post('/api/playlist-info', async (req, res) => {
             if (isPlaylist) {
                 // Get playlist information with flat extraction
                 console.log('Processing playlist URL:', urlStr);
-                info = await youtubedl(urlStr, {
+                info = await runYtDlp(urlStr, {
                     flatPlaylist: true,
                     dumpSingleJson: true,
                     noWarnings: true,
@@ -140,7 +178,7 @@ app.post('/api/playlist-info', async (req, res) => {
                 // If we don't get entries, try a different approach
                 if (!info || !info.entries) {
                     console.log('Trying alternative playlist extraction method...');
-                    info = await youtubedl(urlStr, {
+                    info = await runYtDlp(urlStr, {
                         extractFlat: 'in_playlist',
                         dumpSingleJson: true,
                         noWarnings: true,
@@ -150,7 +188,7 @@ app.post('/api/playlist-info', async (req, res) => {
             } else {
                 // Single track - get its info and treat as a single-item playlist
                 console.log('Processing single track URL:', urlStr);
-                info = await youtubedl(urlStr, {
+                info = await runYtDlp(urlStr, {
                     dumpSingleJson: true,
                     noWarnings: true,
                     noCheckCertificates: true
@@ -200,7 +238,7 @@ app.post('/api/playlist-info', async (req, res) => {
                         tracks.map(async (track, index) => {
                             try {
                                 console.log(`Fetching details for track ${index + 1}/${tracks.length}...`);
-                                const trackInfo = await youtubedl(track.url, {
+                                const trackInfo = await runYtDlp(track.url, {
                                     dumpSingleJson: true,
                                     noWarnings: true,
                                     noCheckCertificates: true
@@ -303,18 +341,34 @@ app.post('/api/download-all', async (req, res) => {
                 const sanitizedTitle = sanitizeFilename(track.title);
                 const outputPath = path.join(playlistDir, `${sanitizedTitle}.%(ext)s`);
                 
-                // Download with yt-dlp - using restrictive format to prevent duplicates
-                await youtubedl(track.url, {
-                    output: outputPath,
-                    format: 'best[ext=mp3]/best[ext=m4a]/best',
-                    extractAudio: true,
-                    audioFormat: 'mp3',
-                    audioQuality: '0',
-                    noPlaylist: true, // Ensure we only get single track
-                    keepVideo: false, // Don't keep original video file
-                    writeInfoJson: false, // Don't write metadata files
-                    writeDescription: false, // Don't write description files
-                    writeThumbnail: false // Don't write thumbnail files
+                // Download with yt-dlp - use spawn directly for downloads
+                await new Promise((resolve, reject) => {
+                    const ytdlp = spawn('yt-dlp', [
+                        track.url,
+                        '-o', outputPath,
+                        '--format', 'best[ext=mp3]/best[ext=m4a]/best',
+                        '--extract-audio',
+                        '--audio-format', 'mp3',
+                        '--audio-quality', '0',
+                        '--no-playlist',
+                        '--no-keep-video',
+                        '--no-write-info-json',
+                        '--no-write-description',
+                        '--no-write-thumbnail',
+                        '--no-warnings'
+                    ]);
+                    
+                    ytdlp.on('close', (code) => {
+                        if (code === 0) {
+                            resolve();
+                        } else {
+                            reject(new Error(`Download failed with code ${code}`));
+                        }
+                    });
+                    
+                    ytdlp.on('error', (error) => {
+                        reject(error);
+                    });
                 });
 
                 // Check if file was created and get its size/duration
@@ -437,18 +491,34 @@ app.post('/api/download-custom', async (req, res) => {
                 const sanitizedTitle = sanitizeFilename(track.title);
                 const outputPath = path.join(playlistDir, `${sanitizedTitle}.%(ext)s`);
                 
-                // Download with yt-dlp - using restrictive format to prevent duplicates
-                await youtubedl(track.url, {
-                    output: outputPath,
-                    format: 'best[ext=mp3]/best[ext=m4a]/best',
-                    extractAudio: true,
-                    audioFormat: 'mp3',
-                    audioQuality: '0',
-                    noPlaylist: true, // Ensure we only get single track
-                    keepVideo: false, // Don't keep original video file
-                    writeInfoJson: false, // Don't write metadata files
-                    writeDescription: false, // Don't write description files
-                    writeThumbnail: false // Don't write thumbnail files
+                // Download with yt-dlp - use spawn directly for downloads
+                await new Promise((resolve, reject) => {
+                    const ytdlp = spawn('yt-dlp', [
+                        track.url,
+                        '-o', outputPath,
+                        '--format', 'best[ext=mp3]/best[ext=m4a]/best',
+                        '--extract-audio',
+                        '--audio-format', 'mp3',
+                        '--audio-quality', '0',
+                        '--no-playlist',
+                        '--no-keep-video',
+                        '--no-write-info-json',
+                        '--no-write-description',
+                        '--no-write-thumbnail',
+                        '--no-warnings'
+                    ]);
+                    
+                    ytdlp.on('close', (code) => {
+                        if (code === 0) {
+                            resolve();
+                        } else {
+                            reject(new Error(`Download failed with code ${code}`));
+                        }
+                    });
+                    
+                    ytdlp.on('error', (error) => {
+                        reject(error);
+                    });
                 });
 
                 // Check if file was created and get its size/duration
@@ -593,7 +663,7 @@ app.post('/api/track-preview', async (req, res) => {
         }
 
         // Get track info including preview URL if available
-        const info = await youtubedl(url, {
+        const info = await runYtDlp(url, {
             dumpSingleJson: true,
             noWarnings: true
         });
