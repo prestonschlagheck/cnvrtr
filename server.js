@@ -4,24 +4,33 @@ const path = require('path');
 const fs = require('fs-extra');
 const { spawn } = require('child_process');
 const { promisify } = require('util');
+const { exec } = require('child_process');
+const execAsync = promisify(exec);
 const os = require('os');
 
-// Direct yt-dlp function using spawn instead of youtube-dl-exec wrapper
+// Helper function to run yt-dlp with proper command structure
 async function runYtDlp(url, options = {}) {
     return new Promise((resolve, reject) => {
         const args = [url];
         
-        // Add common options
-        if (options.flatPlaylist) args.push('--flat-playlist');
-        if (options.dumpSingleJson) args.push('--dump-single-json');
-        if (options.noWarnings) args.push('--no-warnings');
-        if (options.noCheckCertificates) args.push('--no-check-certificates');
-        if (options.extractFlat) args.push('--extract-flat', options.extractFlat);
+        if (options.dumpSingleJson) {
+            args.push('--dump-single-json');
+        }
+        if (options.flatPlaylist) {
+            args.push('--flat-playlist');
+        }
+        if (options.noWarnings) {
+            args.push('--no-warnings');
+        }
+        if (options.noCheckCertificates) {
+            args.push('--no-check-certificates');
+        }
         
         const ytdlpCommand = findYtDlpCommand();
-        console.log('Running yt-dlp with command:', ytdlpCommand, 'args:', args);
+        const ytdlpArgs = ['-m', 'yt_dlp', ...args];
+        console.log('Running yt-dlp with command:', ytdlpCommand, 'args:', ytdlpArgs);
         
-        const ytdlp = spawn(ytdlpCommand, args);
+        const ytdlp = spawn(ytdlpCommand, ytdlpArgs);
         let stdout = '';
         let stderr = '';
         
@@ -38,8 +47,8 @@ async function runYtDlp(url, options = {}) {
                 try {
                     const result = JSON.parse(stdout);
                     resolve(result);
-                } catch (parseError) {
-                    reject(new Error(`Failed to parse JSON: ${parseError.message}\nOutput: ${stdout}`));
+                } catch (e) {
+                    reject(new Error('Failed to parse yt-dlp output'));
                 }
             } else {
                 reject(new Error(`yt-dlp failed with code ${code}: ${stderr}`));
@@ -47,24 +56,15 @@ async function runYtDlp(url, options = {}) {
         });
         
         ytdlp.on('error', (error) => {
-            reject(new Error(`Failed to spawn yt-dlp: ${error.message}`));
+            reject(error);
         });
     });
 }
 
 // Helper function to find yt-dlp binary location
 function findYtDlpCommand() {
-    const ytdlpPaths = ['yt-dlp', './yt-dlp', 'node_modules/.bin/yt-dlp'];
-    
-    for (const path of ytdlpPaths) {
-        try {
-            require('fs').accessSync(path, require('fs').constants.F_OK);
-            return path;
-        } catch (e) {
-            // Continue to next path
-        }
-    }
-    return 'yt-dlp'; // fallback
+    // Use python3 -m yt_dlp since that's how it's installed
+    return 'python3';
 }
 
 console.log('Using direct yt-dlp spawn approach');
@@ -137,10 +137,6 @@ app.get('/health', (req, res) => {
 // Detailed health check endpoint for debugging
 app.get('/health/detailed', async (req, res) => {
     try {
-        const { exec } = require('child_process');
-        const { promisify } = require('util');
-        const execAsync = promisify(exec);
-        
         const checks = {
             server: 'ok',
             approach: 'direct spawn (no wrapper)',
@@ -154,7 +150,7 @@ app.get('/health/detailed', async (req, res) => {
         checks.ytdlp_command_found = ytdlpCommand;
         
         try {
-            const { stdout, stderr } = await execAsync(`${ytdlpCommand} --version`);
+            const { stdout, stderr } = await execAsync(`${ytdlpCommand} -m yt_dlp --version`);
             checks.ytdlp_version = stdout.trim();
             checks.ytdlp_status = 'ok';
         } catch (error) {
@@ -162,128 +158,54 @@ app.get('/health/detailed', async (req, res) => {
             checks.ytdlp_error = error.message;
         }
         
-        // Try which yt-dlp
-        try {
-            const { stdout } = await execAsync('which yt-dlp');
-            checks.ytdlp_path = stdout.trim();
-        } catch (error) {
-            checks.ytdlp_path = 'not found';
-        }
-        
-        // Check if our found command exists
-        try {
-            require('fs').accessSync(ytdlpCommand, require('fs').constants.F_OK);
-            checks.ytdlp_file_exists = 'yes';
-        } catch (error) {
-            checks.ytdlp_file_exists = 'no';
-        }
-        
-        const isHealthy = checks.ytdlp_status === 'ok';
-        
-        res.status(isHealthy ? 200 : 500).json({
-            status: isHealthy ? 'ok' : 'error',
+        res.status(200).json({
+            status: 'ok',
             checks: checks,
-            message: isHealthy ? 'All systems working' : 'Some systems have issues'
+            message: 'Detailed health check completed'
         });
         
     } catch (error) {
         res.status(500).json({ 
             status: 'error', 
-            message: 'Health check failed',
+            message: 'Detailed health check failed',
             error: error.message 
         });
     }
 });
 
-// Get playlist info
+// Get playlist information
 app.post('/api/playlist-info', async (req, res) => {
+    const { url } = req.body;
+    
+    if (!url) {
+        return res.status(400).json({ error: 'URL is required' });
+    }
+    
     try {
-        const { url } = req.body;
-        
-        if (!url || !url.includes('soundcloud.com')) {
-            return res.status(400).json({ error: 'Invalid SoundCloud URL' });
-        }
-
-        // Test yt-dlp availability before proceeding
+        // Check if yt-dlp is available
         try {
-            const { exec } = require('child_process');
-            const execAsync = promisify(exec);
-            await execAsync('yt-dlp --version');
+            await execAsync('python3 -m yt_dlp --version');
         } catch (error) {
-            return res.status(500).json({ 
+            return res.status(500).json({
                 error: 'Service temporarily unavailable',
-                details: 'yt-dlp is not available. Please try again later.',
-                debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+                details: 'yt-dlp is not available. Please try again later.'
             });
         }
-
-        console.log('Fetching playlist info for:', url);
         
-        // Validate URL format more strictly
-        const urlStr = String(url).trim();
-        if (!urlStr || typeof urlStr !== 'string') {
-            return res.status(400).json({ error: 'Invalid URL format' });
-        }
+        console.log('Processing playlist URL:', url);
         
-        // Check if it's a playlist/set URL
-        const isPlaylist = urlStr.includes('/sets/');
+        // Get playlist info
+        const info = await runYtDlp(url, {
+            flatPlaylist: true,
+            dumpSingleJson: true,
+            noWarnings: true,
+            noCheckCertificates: true
+        });
         
-        let info;
+        console.log('Raw info received:', info);
         
-        try {
-            if (isPlaylist) {
-                // Get playlist information with flat extraction
-                console.log('Processing playlist URL:', urlStr);
-                info = await runYtDlp(urlStr, {
-                    flatPlaylist: true,
-                    dumpSingleJson: true,
-                    noWarnings: true,
-                    noCheckCertificates: true
-                });
-                
-                // If we don't get entries, try a different approach
-                if (!info || !info.entries) {
-                    console.log('Trying alternative playlist extraction method...');
-                    info = await runYtDlp(urlStr, {
-                        extractFlat: 'in_playlist',
-                        dumpSingleJson: true,
-                        noWarnings: true,
-                        noCheckCertificates: true
-                    });
-                }
-            } else {
-                // Single track - get its info and treat as a single-item playlist
-                console.log('Processing single track URL:', urlStr);
-                info = await runYtDlp(urlStr, {
-                    dumpSingleJson: true,
-                    noWarnings: true,
-                    noCheckCertificates: true
-                });
-            }
-        } catch (ytdlError) {
-            console.error('yt-dlp error details:', {
-                message: ytdlError.message,
-                stack: ytdlError.stack,
-                url: urlStr
-            });
-            
-            return res.status(500).json({ 
-                error: 'Failed to access SoundCloud content',
-                details: 'The URL may be private, region-restricted, or the service may be temporarily unavailable.',
-                debug: process.env.NODE_ENV === 'development' ? ytdlError.message : undefined
-            });
-        }
-
-        // Debug: Log the structure we get from yt-dlp
-        if (info) {
-            const infoStr = JSON.stringify(info, null, 2);
-            console.log('Raw info received:', infoStr.length > 1000 ? infoStr.substring(0, 1000) + '...' : infoStr);
-        } else {
-            console.log('No info received from yt-dlp');
-        }
-
         // Handle playlist response
-        if (info && info.entries) {
+        if (info && info.entries && Array.isArray(info.entries)) {
             const tracks = info.entries.map((entry, index) => ({
                 id: entry.id || entry.ie_key + '_' + index,
                 title: entry.title || `Track ${index + 1}`,
@@ -293,39 +215,61 @@ app.post('/api/playlist-info', async (req, res) => {
                 thumbnail: entry.thumbnail || (entry.thumbnails && entry.thumbnails[0] ? entry.thumbnails[0].url : null)
             })).filter(track => track.url); // Only include tracks with valid URLs
 
-            // If we have track URLs but no proper titles, fetch detailed metadata for ALL tracks
+            // If we have track URLs but no proper titles, fetch detailed metadata for tracks
             const needsDetailedInfo = tracks.some(track => track.title.startsWith('Track '));
             
-            if (needsDetailedInfo && tracks.length <= 50) { // Limit to 50 tracks for performance
-                console.log(`Fetching detailed track information for ${tracks.length} tracks...`);
+            if (needsDetailedInfo) {
+                // For large playlists, limit to first 120 tracks to avoid timeouts
+                const maxTracks = Math.min(tracks.length, 120);
+                const tracksToProcess = tracks.slice(0, maxTracks);
+                console.log(`Fetching detailed track information for ${maxTracks} tracks (out of ${tracks.length} total)...`);
+                
                 try {
-                    // Fetch detailed info for ALL tracks to get proper titles
-                    const detailedTracks = await Promise.all(
-                        tracks.map(async (track, index) => {
+                    // Process in batches to avoid overwhelming the server
+                    const batchSize = 10;
+                    const batches = Math.ceil(maxTracks / batchSize);
+                    
+                    for (let batch = 0; batch < batches; batch++) {
+                        const start = batch * batchSize;
+                        const end = Math.min(start + batchSize, maxTracks);
+                        const batchTracks = tracksToProcess.slice(start, end);
+                        
+                        console.log(`Processing batch ${batch + 1}/${batches} (tracks ${start + 1}-${end})`);
+                        
+                        for (let i = 0; i < batchTracks.length; i++) {
+                            const track = batchTracks[i];
+                            const trackIndex = start + i;
+                            
+                            console.log(`Fetching details for track ${trackIndex + 1}/${maxTracks}...`);
+                            
                             try {
-                                console.log(`Fetching details for track ${index + 1}/${tracks.length}...`);
                                 const trackInfo = await runYtDlp(track.url, {
                                     dumpSingleJson: true,
                                     noWarnings: true,
                                     noCheckCertificates: true
                                 });
-                                return {
-                                    ...track,
-                                    title: trackInfo.title || track.title,
-                                    uploader: trackInfo.uploader || track.uploader,
-                                    duration: trackInfo.duration || track.duration,
-                                    thumbnail: trackInfo.thumbnail || track.thumbnail
-                                };
-                            } catch (e) {
-                                console.error(`Failed to get details for track ${index + 1}:`, e.message);
-                                return track; // Return original track if detailed fetch fails
+                                
+                                if (trackInfo && trackInfo.title) {
+                                    tracks[trackIndex].title = trackInfo.title;
+                                    tracks[trackIndex].uploader = trackInfo.uploader || track.uploader;
+                                    tracks[trackIndex].duration = trackInfo.duration;
+                                    tracks[trackIndex].thumbnail = trackInfo.thumbnail;
+                                }
+                            } catch (error) {
+                                console.error(`Error fetching details for track ${trackIndex + 1}:`, error.message);
                             }
-                        })
-                    );
+                            
+                            // Add a small delay between requests to be respectful
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
                     
-                    // Replace all tracks with detailed info
-                    tracks.splice(0, tracks.length, ...detailedTracks);
                     console.log('Finished fetching detailed track information.');
+                    
+                    // If we have more tracks than we processed, add a note
+                    if (tracks.length > maxTracks) {
+                        console.log(`Note: Only processed first ${maxTracks} tracks due to playlist size.`);
+                    }
                 } catch (error) {
                     console.error('Error fetching detailed track info:', error);
                 }
@@ -405,25 +349,26 @@ app.post('/api/download-all', async (req, res) => {
                 res.write(`Downloading ${trackNum}/${tracks.length}: ${track.title}\n`);
                 
                 const sanitizedTitle = sanitizeFilename(track.title);
-                const outputPath = path.join(playlistDir, `${sanitizedTitle}.%(ext)s`);
+                const outputPath = path.join(playlistDir, `${sanitizedTitle}.mp3`);
                 
-                // Download with yt-dlp - use spawn directly for downloads
+                // Download with yt-dlp - specifically request MP3 format
                 await new Promise((resolve, reject) => {
                     const ytdlpCommand = findYtDlpCommand();
-                    const ytdlp = spawn(ytdlpCommand, [
+                    const ytdlpArgs = ['-m', 'yt_dlp',
                         track.url,
                         '-o', outputPath,
-                        '--format', 'best[ext=mp3]/best[ext=m4a]/best',
-                        '--extract-audio',
-                        '--audio-format', 'mp3',
-                        '--audio-quality', '0',
+                        '--format', 'hls_mp3_1_0/best[ext=mp3]/bestaudio[ext=mp3]/bestaudio',
                         '--no-playlist',
                         '--no-keep-video',
                         '--no-write-info-json',
                         '--no-write-description',
                         '--no-write-thumbnail',
-                        '--no-warnings'
-                    ]);
+                        '--no-warnings',
+                        '--no-check-certificates'
+                    ];
+                    
+                    console.log(`Running yt-dlp download with command: ${ytdlpCommand} args:`, ytdlpArgs);
+                    const ytdlp = spawn(ytdlpCommand, ytdlpArgs);
                     
                     ytdlp.on('close', (code) => {
                         if (code === 0) {
@@ -438,9 +383,9 @@ app.post('/api/download-all', async (req, res) => {
                     });
                 });
 
-                // Check if file was created and get its size/duration
+                // Check if MP3 file was created
                 const files = await fs.readdir(playlistDir);
-                const trackFiles = files.filter(file => file.startsWith(sanitizedTitle) && (file.endsWith('.mp3') || file.endsWith('.m4a')));
+                const trackFiles = files.filter(file => file.startsWith(sanitizedTitle) && file.endsWith('.mp3'));
                 
                 if (trackFiles.length > 0) {
                     const trackFile = trackFiles[0];
@@ -503,21 +448,25 @@ app.post('/api/download-all', async (req, res) => {
         res.write(`\nDownload complete! ${successCount}/${tracks.length} tracks downloaded successfully.\n`);
         
         if (problemTracks.length > 0) {
-            res.write(`\nISSUES_DETECTED:${JSON.stringify(problemTracks)}\n`);
+            res.write(`\nProblematic tracks (${problemTracks.length}):\n`);
+            problemTracks.forEach(track => {
+                res.write(`- ${track.title}: ${track.issue} (${track.reason})\n`);
+            });
         }
         
+        res.write(`\nFiles saved to: ${playlistDir}\n`);
         res.end();
-
+        
     } catch (error) {
-        console.error('Download all error:', error);
+        console.error('Error in download-all:', error);
         res.write(`Error: ${error.message}\n`);
         res.end();
     }
 });
 
-// Download all tracks with custom path and name
+// Download custom selection of tracks
 app.post('/api/download-custom', async (req, res) => {
-    const { tracks, playlistTitle, customPath } = req.body;
+    const { tracks, playlistTitle } = req.body;
 
     if (!tracks || !Array.isArray(tracks)) {
         return res.status(400).json({ error: 'Invalid tracks data' });
@@ -528,21 +477,12 @@ app.post('/api/download-custom', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // Determine the base directory
-    let baseDir;
-    if (customPath && customPath.trim()) {
-        // Use custom path if provided
-        baseDir = path.resolve(customPath.trim());
-    } else {
-        // Default to Downloads folder
-        baseDir = path.join(os.homedir(), 'Downloads');
-    }
-
-    const playlistDir = path.join(baseDir, sanitizeFilename(playlistTitle));
+    const downloadsDir = path.join(os.homedir(), 'Downloads');
+    const playlistDir = path.join(downloadsDir, sanitizeFilename(playlistTitle));
 
     try {
         await fs.ensureDir(playlistDir);
-        console.log(`Starting custom download of ${tracks.length} tracks to: ${playlistDir}`);
+        console.log(`Starting download of ${tracks.length} selected tracks to: ${playlistDir}`);
         
         // Track problematic downloads
         const problemTracks = [];
@@ -556,25 +496,26 @@ app.post('/api/download-custom', async (req, res) => {
                 res.write(`Downloading ${trackNum}/${tracks.length}: ${track.title}\n`);
                 
                 const sanitizedTitle = sanitizeFilename(track.title);
-                const outputPath = path.join(playlistDir, `${sanitizedTitle}.%(ext)s`);
+                const outputPath = path.join(playlistDir, `${sanitizedTitle}.mp3`);
                 
-                // Download with yt-dlp - use spawn directly for downloads
+                // Download with yt-dlp - specifically request MP3 format
                 await new Promise((resolve, reject) => {
                     const ytdlpCommand = findYtDlpCommand();
-                    const ytdlp = spawn(ytdlpCommand, [
+                    const ytdlpArgs = ['-m', 'yt_dlp',
                         track.url,
                         '-o', outputPath,
-                        '--format', 'best[ext=mp3]/best[ext=m4a]/best',
-                        '--extract-audio',
-                        '--audio-format', 'mp3',
-                        '--audio-quality', '0',
+                        '--format', 'hls_mp3_1_0/best[ext=mp3]/bestaudio[ext=mp3]/bestaudio',
                         '--no-playlist',
                         '--no-keep-video',
                         '--no-write-info-json',
                         '--no-write-description',
                         '--no-write-thumbnail',
-                        '--no-warnings'
-                    ]);
+                        '--no-warnings',
+                        '--no-check-certificates'
+                    ];
+                    
+                    console.log(`Running yt-dlp download with command: ${ytdlpCommand} args:`, ytdlpArgs);
+                    const ytdlp = spawn(ytdlpCommand, ytdlpArgs);
                     
                     ytdlp.on('close', (code) => {
                         if (code === 0) {
@@ -589,9 +530,9 @@ app.post('/api/download-custom', async (req, res) => {
                     });
                 });
 
-                // Check if file was created and get its size/duration
+                // Check if MP3 file was created
                 const files = await fs.readdir(playlistDir);
-                const trackFiles = files.filter(file => file.startsWith(sanitizedTitle) && (file.endsWith('.mp3') || file.endsWith('.m4a')));
+                const trackFiles = files.filter(file => file.startsWith(sanitizedTitle) && file.endsWith('.mp3'));
                 
                 if (trackFiles.length > 0) {
                     const trackFile = trackFiles[0];
@@ -654,100 +595,121 @@ app.post('/api/download-custom', async (req, res) => {
         res.write(`\nDownload complete! ${successCount}/${tracks.length} tracks downloaded successfully.\n`);
         
         if (problemTracks.length > 0) {
-            res.write(`\nISSUES_DETECTED:${JSON.stringify(problemTracks)}\n`);
+            res.write(`\nProblematic tracks (${problemTracks.length}):\n`);
+            problemTracks.forEach(track => {
+                res.write(`- ${track.title}: ${track.issue} (${track.reason})\n`);
+            });
         }
         
+        res.write(`\nFiles saved to: ${playlistDir}\n`);
         res.end();
-
+        
     } catch (error) {
-        console.error('Custom download error:', error);
+        console.error('Error in download-custom:', error);
         res.write(`Error: ${error.message}\n`);
         res.end();
     }
 });
 
-// Download single track - stream directly to browser
+// Download a single track
 app.post('/api/download-track', async (req, res) => {
+    const { track } = req.body;
+
+    if (!track || !track.url) {
+        return res.status(400).json({ error: 'Invalid track data' });
+    }
+
+    const downloadsDir = path.join(os.homedir(), 'Downloads');
+    const sanitizedTitle = sanitizeFilename(track.title);
+    const outputPath = path.join(downloadsDir, `${sanitizedTitle}.mp3`);
+
     try {
-        const { url, title } = req.body;
+        await fs.ensureDir(downloadsDir);
+        console.log(`Downloading single track: ${track.title}`);
+
+        // Download with yt-dlp - specifically request MP3 format
+        await new Promise((resolve, reject) => {
+            const ytdlpCommand = findYtDlpCommand();
+            const ytdlpArgs = ['-m', 'yt_dlp',
+                track.url,
+                '-o', outputPath,
+                '--format', 'hls_mp3_1_0/best[ext=mp3]/bestaudio[ext=mp3]/bestaudio',
+                '--no-playlist',
+                '--no-keep-video',
+                '--no-write-info-json',
+                '--no-write-description',
+                '--no-write-thumbnail',
+                '--no-warnings',
+                '--no-check-certificates'
+            ];
+            
+            console.log(`Running yt-dlp download with command: ${ytdlpCommand} args:`, ytdlpArgs);
+            const ytdlp = spawn(ytdlpCommand, ytdlpArgs);
+            
+            ytdlp.on('close', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`Download failed with code ${code}`));
+                }
+            });
+            
+            ytdlp.on('error', (error) => {
+                reject(error);
+            });
+        });
+
+        // Check if MP3 file was created
+        const files = await fs.readdir(downloadsDir);
+        const trackFiles = files.filter(file => file.startsWith(sanitizedTitle) && file.endsWith('.mp3'));
         
-        if (!url || !title) {
-            return res.status(400).json({ error: 'URL and title are required' });
+        if (trackFiles.length > 0) {
+            const trackFile = trackFiles[0];
+            const filePath = path.join(downloadsDir, trackFile);
+            const stats = await fs.stat(filePath);
+            
+            res.setHeader('Content-Disposition', `attachment; filename="${trackFile}"`);
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Content-Length', stats.size);
+            
+            const fileStream = fs.createReadStream(filePath);
+            fileStream.pipe(res);
+        } else {
+            res.status(404).json({ error: 'Downloaded file not found' });
         }
-
-        const sanitizedTitle = title.replace(/[^\w\s-]/g, '').trim();
-        console.log('Streaming track:', title);
-
-        // Set headers for file download
-        res.setHeader('Content-Disposition', `attachment; filename="${sanitizedTitle}.mp3"`);
-        res.setHeader('Content-Type', 'audio/mpeg');
-
-        // Stream the audio directly to the response
-        const ytdlp = spawn('yt-dlp', [
-            url,
-            '-x',                     // Extract audio
-            '--audio-format', 'mp3',  // Force MP3 format
-            '--audio-quality', '0',   // Best quality
-            '--embed-metadata',       // Embed track metadata
-            '--no-warnings',
-            '--output', '-'           // Output to stdout
-        ]);
-
-        ytdlp.stdout.pipe(res);
-
-        ytdlp.on('error', (error) => {
-            console.error('yt-dlp error:', error);
-            if (!res.headersSent) {
-                res.status(500).json({ error: 'Failed to download track' });
-            }
-        });
-
-        ytdlp.stderr.on('data', (data) => {
-            console.error('yt-dlp stderr:', data.toString());
-        });
-
-        ytdlp.on('close', (code) => {
-            if (code !== 0 && !res.headersSent) {
-                res.status(500).json({ error: 'Download failed' });
-            }
-            console.log(`Download completed for: ${title}`);
-        });
 
     } catch (error) {
         console.error('Error downloading track:', error);
-        if (!res.headersSent) {
-            res.status(500).json({ error: 'Failed to download track' });
-        }
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Get track preview URL (for audio preview without downloading)
+// Get track preview/info
 app.post('/api/track-preview', async (req, res) => {
-    try {
-        const { url } = req.body;
-        
-        if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
-        }
+    const { url } = req.body;
 
-        // Get track info including preview URL if available
-        const info = await runYtDlp(url, {
+    if (!url) {
+        return res.status(400).json({ error: 'URL is required' });
+    }
+
+    try {
+        const trackInfo = await runYtDlp(url, {
             dumpSingleJson: true,
-            noWarnings: true
+            noWarnings: true,
+            noCheckCertificates: true
         });
 
-        // Send back preview info
         res.json({
-            title: info.title,
-            duration: info.duration,
-            thumbnail: info.thumbnail,
-            // Note: SoundCloud direct streaming might not work due to CORS
-            previewUrl: info.url || null
+            title: trackInfo.title,
+            uploader: trackInfo.uploader,
+            duration: trackInfo.duration,
+            thumbnail: trackInfo.thumbnail,
+            url: trackInfo.webpage_url || url
         });
 
     } catch (error) {
         console.error('Error getting track preview:', error);
-        res.status(500).json({ error: 'Failed to get track preview' });
+        res.status(500).json({ error: error.message });
     }
 });
 

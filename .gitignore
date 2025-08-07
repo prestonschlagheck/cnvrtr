@@ -74,3 +74,15 @@ downloads/
 # Logs
 logs
 *.log 
+# Local media test files
+*.mp3
+*.m4a
+*.wav
+*.flac
+*.opus
+
+# Cloudflared artifacts
+cloudflared
+cloudflared.exe
+cloudflared.log
+cloudflared.tgz 
