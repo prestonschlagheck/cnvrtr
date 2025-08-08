@@ -1,0 +1,22 @@
+# Nixpacks configuration for Railway
+
+# Install additional packages
+[phases.setup]
+aptPkgs = ["python3", "python3-pip", "curl", "ca-certificates"]
+
+# Install yt-dlp via pip
+[phases.install]
+cmds = [
+  "python3 -m pip install --user yt-dlp"
+]
+
+# Runtime environment
+[env]
+NODE_ENV = "production"
+PORT = "3000"
+
+# Start command
+[start]
+cmd = "npm start"
+
+# Healthcheck (Railway will hit /ping) 
