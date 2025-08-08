@@ -135,13 +135,17 @@ app.get('/app.html', (req, res) => {
 // Simple health check endpoint for Railway
 app.get('/health', (req, res) => {
     try {
-        // Basic server health check - don't depend on yt-dlp for initial deployment
+        // Fast health check - don't test yt-dlp here to avoid timeouts
         const checks = {
             server: 'ok',
             timestamp: new Date().toISOString(),
             node_env: process.env.NODE_ENV || 'development',
             port: process.env.PORT || 3000,
-            uptime: process.uptime()
+            uptime: process.uptime(),
+            memory: {
+                used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+            }
         };
         
         // Always return 200 for basic health check
@@ -385,7 +389,14 @@ app.post('/api/download-all', async (req, res) => {
                     console.log(`Running yt-dlp download with command: ${ytdlpCommand} args:`, ytdlpArgs);
                     const ytdlp = spawn(ytdlpCommand, ytdlpArgs);
                     
+                    // Add timeout for Railway deployment
+                    const timeout = setTimeout(() => {
+                        ytdlp.kill('SIGTERM');
+                        reject(new Error('Download timeout after 5 minutes'));
+                    }, 5 * 60 * 1000); // 5 minutes
+                    
                     ytdlp.on('close', (code) => {
+                        clearTimeout(timeout);
                         if (code === 0) {
                             resolve();
                         } else {
@@ -394,6 +405,7 @@ app.post('/api/download-all', async (req, res) => {
                     });
                     
                     ytdlp.on('error', (error) => {
+                        clearTimeout(timeout);
                         reject(error);
                     });
                 });
@@ -532,7 +544,14 @@ app.post('/api/download-custom', async (req, res) => {
                     console.log(`Running yt-dlp download with command: ${ytdlpCommand} args:`, ytdlpArgs);
                     const ytdlp = spawn(ytdlpCommand, ytdlpArgs);
                     
+                    // Add timeout for Railway deployment
+                    const timeout = setTimeout(() => {
+                        ytdlp.kill('SIGTERM');
+                        reject(new Error('Download timeout after 5 minutes'));
+                    }, 5 * 60 * 1000); // 5 minutes
+                    
                     ytdlp.on('close', (code) => {
+                        clearTimeout(timeout);
                         if (code === 0) {
                             resolve();
                         } else {
@@ -541,6 +560,7 @@ app.post('/api/download-custom', async (req, res) => {
                     });
                     
                     ytdlp.on('error', (error) => {
+                        clearTimeout(timeout);
                         reject(error);
                     });
                 });
@@ -668,7 +688,14 @@ app.post('/api/download-track', async (req, res) => {
             console.log(`Running yt-dlp download with command: ${ytdlpCommand} args:`, ytdlpArgs);
             const ytdlp = spawn(ytdlpCommand, ytdlpArgs);
             
+            // Add timeout for Railway deployment
+            const timeout = setTimeout(() => {
+                ytdlp.kill('SIGTERM');
+                reject(new Error('Download timeout after 5 minutes'));
+            }, 5 * 60 * 1000); // 5 minutes
+            
             ytdlp.on('close', (code) => {
+                clearTimeout(timeout);
                 if (code === 0) {
                     resolve();
                 } else {
@@ -677,6 +704,7 @@ app.post('/api/download-track', async (req, res) => {
             });
             
             ytdlp.on('error', (error) => {
+                clearTimeout(timeout);
                 reject(error);
             });
         });
