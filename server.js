@@ -67,6 +67,33 @@ function findYtDlpCommand() {
     return 'python3';
 }
 
+// Concurrency limiter to prevent overwhelming the system while speeding up metadata fetches
+function createConcurrencyLimiter(limit) {
+    let active = 0;
+    const queue = [];
+
+    const runNext = () => {
+        if (active >= limit || queue.length === 0) return;
+        active++;
+        const { fn, resolve, reject } = queue.shift();
+        Promise.resolve()
+            .then(fn)
+            .then(resolve)
+            .catch(reject)
+            .finally(() => {
+                active--;
+                runNext();
+            });
+    };
+
+    return function schedule(fn) {
+        return new Promise((resolve, reject) => {
+            queue.push({ fn, resolve, reject });
+            runNext();
+        });
+    };
+}
+
 console.log('Using direct yt-dlp spawn approach');
 
 const app = express();
@@ -219,59 +246,47 @@ app.post('/api/playlist-info', async (req, res) => {
             const needsDetailedInfo = tracks.some(track => track.title.startsWith('Track '));
             
             if (needsDetailedInfo) {
-                // For large playlists, limit to first 120 tracks to avoid timeouts
-                const maxTracks = Math.min(tracks.length, 120);
-                const tracksToProcess = tracks.slice(0, maxTracks);
-                console.log(`Fetching detailed track information for ${maxTracks} tracks (out of ${tracks.length} total)...`);
-                
-                try {
-                    // Process in batches to avoid overwhelming the server
-                    const batchSize = 10;
-                    const batches = Math.ceil(maxTracks / batchSize);
-                    
-                    for (let batch = 0; batch < batches; batch++) {
-                        const start = batch * batchSize;
-                        const end = Math.min(start + batchSize, maxTracks);
-                        const batchTracks = tracksToProcess.slice(start, end);
-                        
-                        console.log(`Processing batch ${batch + 1}/${batches} (tracks ${start + 1}-${end})`);
-                        
-                        for (let i = 0; i < batchTracks.length; i++) {
-                            const track = batchTracks[i];
-                            const trackIndex = start + i;
-                            
-                            console.log(`Fetching details for track ${trackIndex + 1}/${maxTracks}...`);
-                            
+                // Process a subset concurrently with a strict time budget to avoid Cloudflare 524
+                const startTimeMs = Date.now();
+                const timeBudgetMs = parseInt(process.env.PLAYLIST_INFO_BUDGET_MS || '180000', 10); // 3 min budget
+                const concurrency = parseInt(process.env.PLAYLIST_INFO_CONCURRENCY || '6', 10);
+                const maxTracks = Math.min(tracks.length, parseInt(process.env.PLAYLIST_INFO_MAX || '60', 10));
+                const limiter = createConcurrencyLimiter(concurrency);
+
+                const tasks = [];
+                for (let i = 0; i < maxTracks; i++) {
+                    const idx = i;
+                    const track = tracks[idx];
+                    tasks.push(
+                        limiter(async () => {
+                            if (Date.now() - startTimeMs > timeBudgetMs) {
+                                return;
+                            }
                             try {
+                                console.log(`Fetching details concurrently for track ${idx + 1}/${maxTracks}...`);
                                 const trackInfo = await runYtDlp(track.url, {
                                     dumpSingleJson: true,
                                     noWarnings: true,
                                     noCheckCertificates: true
                                 });
-                                
                                 if (trackInfo && trackInfo.title) {
-                                    tracks[trackIndex].title = trackInfo.title;
-                                    tracks[trackIndex].uploader = trackInfo.uploader || track.uploader;
-                                    tracks[trackIndex].duration = trackInfo.duration;
-                                    tracks[trackIndex].thumbnail = trackInfo.thumbnail;
+                                    tracks[idx].title = trackInfo.title;
+                                    tracks[idx].uploader = trackInfo.uploader || tracks[idx].uploader;
+                                    tracks[idx].duration = trackInfo.duration;
+                                    tracks[idx].thumbnail = trackInfo.thumbnail;
                                 }
                             } catch (error) {
-                                console.error(`Error fetching details for track ${trackIndex + 1}:`, error.message);
+                                console.error(`Error fetching details for track ${idx + 1}:`, error.message);
                             }
-                            
-                            // Add a small delay between requests to be respectful
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
-                    }
-                    
-                    console.log('Finished fetching detailed track information.');
-                    
-                    // If we have more tracks than we processed, add a note
-                    if (tracks.length > maxTracks) {
-                        console.log(`Note: Only processed first ${maxTracks} tracks due to playlist size.`);
-                    }
+                        })
+                    );
+                }
+
+                try {
+                    await Promise.allSettled(tasks);
+                    console.log('Finished concurrent detailed track information fetch.');
                 } catch (error) {
-                    console.error('Error fetching detailed track info:', error);
+                    console.error('Error during concurrent detailed track info fetch:', error.message);
                 }
             }
 
@@ -613,14 +628,21 @@ app.post('/api/download-custom', async (req, res) => {
 
 // Download a single track
 app.post('/api/download-track', async (req, res) => {
-    const { track } = req.body;
+    // Accept either JSON body { track: { url, title } } or form-encoded { url, title }
+    let track = req.body.track;
+    if (!track) {
+        const { url, title } = req.body || {};
+        if (url) {
+            track = { url, title: title || 'SoundCloud Track' };
+        }
+    }
 
     if (!track || !track.url) {
         return res.status(400).json({ error: 'Invalid track data' });
     }
 
     const downloadsDir = path.join(os.homedir(), 'Downloads');
-    const sanitizedTitle = sanitizeFilename(track.title);
+    const sanitizedTitle = sanitizeFilename(track.title || 'SoundCloud Track');
     const outputPath = path.join(downloadsDir, `${sanitizedTitle}.mp3`);
 
     try {
