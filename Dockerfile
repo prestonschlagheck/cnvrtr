@@ -20,7 +20,7 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 COPY package*.json ./
 
 # Install Node.js dependencies
-RUN npm install
+RUN npm install --production
 
 # Copy application files
 COPY . .
@@ -62,8 +62,5 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PATH="/app/node_modules/.bin:/app:/usr/local/bin:$PATH"
 
-# Make startup script executable
-RUN chmod +x start.sh
-
-# Start the application
-CMD ["./start.sh"] 
+# Start the application with npm directly to avoid shell issues
+CMD ["npm", "start"] 
