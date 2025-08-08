@@ -1,22 +1,23 @@
 # Nixpacks configuration for Railway
 
-# Install additional packages
+# Use Nix packages for base utilities
 [phases.setup]
-aptPkgs = ["python3", "python3-pip", "curl", "ca-certificates"]
+nixPkgs = ["bash", "python3", "curl", "cacert", "coreutils"]
 
-# Install yt-dlp via pip
+# Install yt-dlp globally via pipx-style user bin
 [phases.install]
 cmds = [
+  "python3 -m pip install --user --upgrade pip",
   "python3 -m pip install --user yt-dlp"
 ]
 
-# Runtime environment
+# Environment
 [env]
 NODE_ENV = "production"
-PORT = "3000"
+# PORT is provided by Railway
 
-# Start command
+# Start command (Railway overrides with startCommand in railway.json)
 [start]
-cmd = "npm start"
+cmd = "node server.js"
 
 # Healthcheck (Railway will hit /ping) 
