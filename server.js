@@ -764,7 +764,12 @@ app.post('/api/track-preview', async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-    console.log(`Health check available at http://0.0.0.0:${PORT}/health`);
-    console.log(`Detailed health check at http://0.0.0.0:${PORT}/health/detailed`);
+    console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
+    console.log(`✅ Health check available at http://0.0.0.0:${PORT}/health`);
+    console.log(`✅ Detailed health check at http://0.0.0.0:${PORT}/health/detailed`);
+    console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`✅ Process ID: ${process.pid}`);
+}).on('error', (error) => {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
 }); 
